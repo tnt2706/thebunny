@@ -1,0 +1,531 @@
+@startuml TheBunny_OOP_ClassDiagram_v2
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam linetype polyline
+skinparam nodesep 55
+skinparam ranksep 70
+skinparam padding 4
+skinparam shadowing false
+skinparam roundCorner 10
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+
+' ===== Class =====
+skinparam ClassBackgroundColor #ffffff
+skinparam ClassBorderColor #cbd5e1
+skinparam ClassBorderThickness 1
+skinparam ClassHeaderBackgroundColor #f8fafc
+skinparam ClassFontSize 13
+skinparam ClassFontStyle bold
+skinparam ClassAttributeFontSize 11
+skinparam ClassAttributeIconSize 10
+skinparam ClassStereotypeFontColor #ea580c
+skinparam ClassStereotypeFontSize 10
+
+' ===== Abstract / Interface =====
+skinparam AbstractClassBackgroundColor #fef3c7
+skinparam AbstractClassBorderColor #d97706
+skinparam InterfaceBackgroundColor #ddd6fe
+skinparam InterfaceBorderColor #7c3aed
+
+' ===== Enum =====
+skinparam EnumBackgroundColor #fff7ed
+skinparam EnumBorderColor #fdba74
+
+' ===== Package =====
+skinparam PackageBorderColor #94a3b8
+skinparam PackageBorderThickness 1
+skinparam PackageFontSize 13
+skinparam PackageFontStyle bold
+skinparam PackageStyle rectangle
+
+' ===== Arrows =====
+skinparam ArrowColor #94a3b8
+skinparam ArrowThickness 1.1
+skinparam ArrowFontColor #64748b
+skinparam ArrowFontSize 10
+skinparam ArrowFontStyle italic
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title TheBunny — Class Diagram (UML 2.5)\nMô hình hướng đối tượng — phân biệt rõ với ERD · Nhóm 10
+
+' ============================================================
+' ENUMERATIONS
+' ============================================================
+together {
+  enum UserStatus {
+    Active
+    Banned
+    Pending
+  }
+  enum FriendStatus {
+    Pending
+    Accepted
+    Blocked
+  }
+  enum ApprovalStatus {
+    Pending
+    Approved
+    Rejected
+  }
+  enum ReportStatus {
+    Pending
+    Reviewed
+    Rejected
+    Resolved
+  }
+  enum MatchStatus {
+    Cho
+    DangDau
+    KetThuc
+  }
+  enum AnswerChoice {
+    A
+    B
+    C
+    D
+  }
+}
+
+' ============================================================
+' INTERFACES — cross-cutting behaviors
+' ============================================================
+together {
+  interface Likeable {
+    +like(user : User) : void
+    +unlike(user : User) : void
+    +getLikeCount() : Integer
+  }
+
+  interface Commentable {
+    +addComment(c : BinhLuan) : void
+    +getComments() : List<BinhLuan>
+  }
+
+  interface Reportable {
+    +report(reporter : User, reason : String) : BaoCaoViPham
+  }
+
+  interface Notifiable {
+    +notify(message : String) : void
+  }
+}
+
+' ============================================================
+' 👤 USER DOMAIN — inheritance đầy đủ
+' ============================================================
+package "User" as PKG_USER #E0E7FF {
+
+  abstract class User <<abstract>> {
+    -id : Integer
+    -username : String
+    -email : String
+    -passwordHash : String
+    -status : UserStatus
+    -roleLevel : Integer
+    -isOnline : Boolean
+    -createdAt : Date
+    --
+    +login(password : String) : Boolean
+    +logout() : void
+    +updateProfile(p : HoSoCaNhan) : void
+    +changePassword(old, new : String) : Boolean
+    +{abstract} getPermissions() : Set<String>
+    +{abstract} getRoleName() : String
+  }
+
+  class HocSinh <<entity>> {
+    -truongHoc : String
+    --
+    +getRoleName() : String
+    +getPermissions() : Set<String>
+  }
+
+  class SinhVien <<entity>> {
+    -truongDaiHoc : String
+    -maSinhVien : String
+    --
+    +getRoleName() : String
+    +getPermissions() : Set<String>
+  }
+
+  class GiaoVien <<entity>> {
+    -giayToChungMinh : String
+    -chuyenMon : String
+    --
+    +getRoleName() : String
+    +getPermissions() : Set<String>
+    +taoBoDe(ten : String) : BoDe
+    +taoSuKien(s : SuKien) : void
+    +duyetThanhVienSK(tv : ThanhVienSuKien) : void
+  }
+
+  class QuanTriVien <<entity>> {
+    -capQuanTri : Integer
+    --
+    +getRoleName() : String
+    +getPermissions() : Set<String>
+    +banUser(u : User) : void
+    +duyetBaoCao(b : BaoCaoViPham) : void
+    +taoBaoCaoThongKe(loai : String) : BaoCaoThongKe
+  }
+
+  class HoSoCaNhan <<entity>> {
+    -id : Integer
+    -thongTinDinhDanh : String
+    -ngaySinh : Date
+    -avatar : String
+    --
+    +update(info : String) : void
+    +getDisplayInfo() : String
+  }
+
+  User <|-- HocSinh
+  User <|-- SinhVien
+  User <|-- GiaoVien
+  User <|-- QuanTriVien
+}
+
+' ============================================================
+' 📱 SOCIAL DOMAIN
+' ============================================================
+package "Social" as PKG_SOCIAL #DCFCE7 {
+
+  class BaiDang <<entity>> {
+    -id : Integer
+    -noiDung : String
+    -createdAt : Date
+    --
+    +edit(content : String) : void
+    +delete() : void
+    +getLikeCount() : Integer
+    +getCommentCount() : Integer
+    +addHashtag(h : Hashtag) : void
+  }
+
+  class BinhLuan <<entity>> {
+    -id : Integer
+    -noiDung : String
+    -createdAt : Date
+    --
+    +edit(content : String) : void
+    +delete() : void
+  }
+
+  class Hashtag <<value>> {
+    -id : Integer
+    -tenHashtag : String
+    --
+    +normalize() : String
+  }
+}
+
+' ============================================================
+' Association classes — many-to-many với thuộc tính riêng
+' ============================================================
+class LuotThich <<association>> {
+  -createdAt : Date
+  --
+  +revoke() : void
+}
+
+class LuotChiaSe <<association>> {
+  -createdAt : Date
+  -platform : String
+}
+
+class BanCungTien <<association>> {
+  -status : FriendStatus
+  -createdAt : Date
+  --
+  +accept() : void
+  +block() : void
+  +unfriend() : void
+}
+
+' ============================================================
+' 💬 MESSAGING DOMAIN
+' ============================================================
+package "Messaging" as PKG_MSG #FEF9C3 {
+
+  class CuocTroChuyen <<aggregate root>> {
+    -id : Integer
+    -createdAt : Date
+    --
+    +addMember(u : User) : void
+    +removeMember(u : User) : void
+    +sendMessage(sender : User, content : String) : TinNhan
+    +getMessages(limit : Integer) : List<TinNhan>
+  }
+
+  class TinNhan <<entity>> {
+    -id : Integer
+    -noiDung : String
+    -thoiGian : Date
+    --
+    +edit(content : String) : void
+    +recall() : void
+  }
+
+  class ThongBao <<entity>> {
+    -id : Integer
+    -noiDung : String
+    -isRead : Boolean
+    -createdAt : Date
+    --
+    +markAsRead() : void
+  }
+}
+
+class CuocTroChuyenThanhVien <<association>> {
+  -joinedAt : Date
+  -role : String
+}
+
+' ============================================================
+' 📚 LEARNING DOMAIN
+' ============================================================
+package "Learning" as PKG_LEARN #FCE7F3 {
+
+  class TaiLieu <<entity>> {
+    -id : Integer
+    -tenTaiLieu : String
+    -fileUrl : String
+    -createdAt : Date
+    --
+    +download() : InputStream
+    +rename(newName : String) : void
+  }
+
+  class SuKien <<aggregate root>> {
+    -id : Integer
+    -tieuDe : String
+    -thoiGian : Date
+    --
+    +register(u : User) : ThanhVienSuKien
+    +approve(tv : ThanhVienSuKien) : void
+    +reject(tv : ThanhVienSuKien) : void
+    +getApprovedMembers() : List<User>
+  }
+}
+
+class ThanhVienSuKien <<association>> {
+  -trangThaiDuyet : ApprovalStatus
+  -registeredAt : Date
+  --
+  +approve() : void
+  +reject() : void
+}
+
+' ============================================================
+' 📝 QUIZ & EXAM DOMAIN
+' ============================================================
+package "Quiz" as PKG_QUIZ #F3E8FF {
+
+  class BoDe <<aggregate root>> {
+    -id : Integer
+    -tenBoDe : String
+    --
+    +addCauHoi(c : CauHoi) : void
+    +getQuestionCount() : Integer
+    +shuffle() : List<CauHoi>
+  }
+
+  class CauHoi <<entity>> {
+    -id : Integer
+    -noiDung : String
+    -luaChonA : String
+    -luaChonB : String
+    -luaChonC : String
+    -luaChonD : String
+    -dapAnDung : AnswerChoice
+    --
+    +check(answer : AnswerChoice) : Boolean
+  }
+
+  class PhienLuyenTap <<entity>> {
+    -id : Integer
+    -diemSo : Integer
+    -startedAt : Date
+    -endedAt : Date
+    --
+    +start() : void
+    +submit(answers : Map) : Integer
+    +calculateScore() : Integer
+  }
+}
+
+' ============================================================
+' 🏆 COMPETITION DOMAIN
+' ============================================================
+package "Competition" as PKG_COMP #FFF7ED {
+
+  class PhongThachDau <<aggregate root>> {
+    -id : Integer
+    -createdAt : Date
+    --
+    +join(u : User) : void
+    +leave(u : User) : void
+    +startMatch() : TranDau
+  }
+
+  class TranDau <<entity>> {
+    -id : Integer
+    -diemNguoi1 : Integer
+    -diemNguoi2 : Integer
+    -trangThai : MatchStatus
+    -startedAt : Date
+    -endedAt : Date
+    --
+    +start() : void
+    +submitAnswer(p : User, c : CauHoi, a : AnswerChoice) : void
+    +end() : User
+    +getWinner() : User
+  }
+
+  class HangTho <<entity>> {
+    -id : Integer
+    -tenHangTho : String
+    -minDiem : Integer
+    --
+    +qualifies(diem : Integer) : Boolean
+  }
+}
+
+class UserPhongThachDau <<association>> {
+  -joinedAt : Date
+  -isReady : Boolean
+}
+
+class UserHangTho <<association>> {
+  -diem : Integer
+  -achievedAt : Date
+}
+
+' ============================================================
+' 🛡️ MODERATION DOMAIN
+' ============================================================
+package "Moderation" as PKG_MOD #F1F5F9 {
+
+  class BaoCaoViPham <<entity>> {
+    -id : Integer
+    -lyDo : String
+    -trangThai : ReportStatus
+    -createdAt : Date
+    --
+    +review() : void
+    +resolve() : void
+    +reject() : void
+  }
+
+  class BaoCaoThongKe <<entity>> {
+    -id : Integer
+    -loaiBaoCao : String
+    -noiDungBaoCao : String
+    -createdAt : Date
+    --
+    +generate() : void
+    +exportPdf() : File
+  }
+}
+
+' ============================================================
+' INHERITANCE — Interface implementations
+' ============================================================
+BaiDang ..|> Likeable
+BaiDang ..|> Commentable
+BaiDang ..|> Reportable
+BinhLuan ..|> Likeable
+User     ..|> Notifiable
+User     ..|> Reportable
+
+' ============================================================
+' ASSOCIATIONS — chính, có multiplicity
+' ============================================================
+
+' User — HoSoCaNhan (composition, 1-1)
+User "1" *-- "0..1" HoSoCaNhan
+
+' Social
+User "1"  --> "0..*" BaiDang     : > tác giả
+BaiDang "1" *-- "0..*" BinhLuan
+User "1"  --> "0..*" BinhLuan    : > viết
+BaiDang "0..*" -- "0..*" Hashtag : > gắn
+
+' Association class — LuotThich nối User & BaiDang
+(User, BaiDang) .. LuotThich
+(User, BaiDang) .. LuotChiaSe
+
+' Association class — BanCungTien (self-reflexive)
+(User, User) .. BanCungTien
+
+' Messaging
+CuocTroChuyen "1" *-- "0..*" TinNhan
+User "1" --> "0..*" TinNhan : > sender
+User "1" --> "0..*" ThongBao
+(User, CuocTroChuyen) .. CuocTroChuyenThanhVien
+
+' Learning
+User "1" --> "0..*" TaiLieu : > upload
+(User, SuKien) .. ThanhVienSuKien
+
+' Quiz
+BoDe "1" *-- "1..*" CauHoi
+User "1" --> "0..*" PhienLuyenTap
+PhienLuyenTap "0..*" --> "1" BoDe : > của
+
+' Competition
+PhongThachDau "0..*" --> "1" BoDe : > dùng
+PhongThachDau "1" *-- "0..*" TranDau
+TranDau "0..*" --> "2" User      : > người chơi
+(User, PhongThachDau) .. UserPhongThachDau
+(User, HangTho)       .. UserHangTho
+
+' Moderation
+User "1" --> "0..*" BaoCaoViPham : > người báo cáo
+BaoCaoViPham "0..*" --> "0..1" User    : > người bị báo cáo
+BaoCaoViPham "0..*" --> "0..1" BaiDang : > bài bị báo cáo
+QuanTriVien "1" --> "0..*" BaoCaoThongKe
+
+' Enum dependencies
+User           ..> UserStatus
+BanCungTien    ..> FriendStatus
+ThanhVienSuKien ..> ApprovalStatus
+CauHoi         ..> AnswerChoice
+TranDau        ..> MatchStatus
+BaoCaoViPham   ..> ReportStatus
+
+' ============================================================
+' NOTES — giải thích lựa chọn thiết kế
+' ============================================================
+note top of User
+  **Abstract class** — không khởi tạo trực tiếp.
+  Bốn lớp con triển khai `getPermissions()`
+  theo nguyên tắc đa hình (polymorphism).
+end note
+
+note right of LuotThich
+  **Association class**
+  Many-to-many giữa User và BaiDang
+  với thuộc tính riêng (createdAt).
+  Notation UML: cặp ngoặc + dotted line.
+end note
+
+note bottom of Likeable
+  **Interfaces** cho cross-cutting concerns —
+  cho phép đa kế thừa hành vi mà không
+  ràng buộc cấu trúc dữ liệu.
+end note
+
+@enduml

@@ -1,0 +1,375 @@
+' ============================================================
+' TheBunny — Sequence Diagrams (Nhóm 10)
+' Style: cerulean-outline + custom palette, đồng bộ với class diagram v2
+' ============================================================
+
+@startuml TheBunny_Sequence_PostComment
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam padding 4
+skinparam ParticipantPadding 24
+skinparam BoxPadding 14
+skinparam sequenceMessageAlign center
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+' ===== Actors =====
+skinparam ActorStyle awesome
+skinparam ActorBorderColor #1e293b
+skinparam ActorBackgroundColor #ffffff
+skinparam ActorFontStyle bold
+
+' ===== Participants =====
+skinparam ParticipantBorderColor #475569
+skinparam ParticipantBorderThickness 1.2
+skinparam ParticipantBackgroundColor #ffffff
+skinparam ParticipantFontStyle bold
+skinparam ParticipantFontColor #0f172a
+
+' ===== Database =====
+skinparam DatabaseBackgroundColor #fee2e2
+skinparam DatabaseBorderColor #b91c1c
+
+' ===== Lifeline / Activation =====
+skinparam SequenceLifeLineBorderColor #cbd5e1
+skinparam SequenceLifeLineBackgroundColor #f1f5f9
+skinparam SequenceGroupBodyBackgroundColor #f8fafc
+skinparam SequenceGroupBorderColor #94a3b8
+skinparam SequenceGroupFontStyle bold
+skinparam SequenceGroupFontColor #1e293b
+skinparam SequenceDividerBackgroundColor #e2e8f0
+skinparam SequenceDividerBorderColor #94a3b8
+skinparam SequenceDividerFontStyle bold
+
+' ===== Arrows =====
+skinparam SequenceArrowColor #475569
+skinparam SequenceArrowThickness 1.2
+skinparam SequenceArrowFontColor #334155
+skinparam SequenceArrowFontSize 11
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title Sequence Diagram (1/3) — Đăng bài & Bình luận
+
+actor "Người dùng A"     as A  #E0E7FF
+actor "Người dùng B"     as B  #DCFCE7
+box "Frontend" #F8FAFC
+  participant "WebApp" as Web
+end box
+box "Application Layer" #DCFCE7
+  participant "PostController"     as PC
+  participant "BaiDang\n<<Entity>>" as BD
+  participant "BinhLuan\n<<Entity>>" as BL
+  participant "ThongBao\n<<Service>>" as TB
+end box
+database "MariaDB" as DB
+
+== Đăng bài ==
+A -> Web : Nhập nội dung & submit
+activate Web
+Web -> PC : POST /posts {noi_dung}
+activate PC
+PC -> BD : new BaiDang(userId, noiDung)
+activate BD
+BD -> DB : INSERT INTO bai_dang
+DB --> BD : id, createdAt
+BD --> PC : BaiDang
+deactivate BD
+PC --> Web : 201 Created
+deactivate PC
+Web --> A : Hiển thị bài đăng
+deactivate Web
+
+== Bình luận ==
+B -> Web : Mở feed, chọn bài đăng
+activate Web
+Web -> PC : GET /posts/:id
+activate PC
+PC -> DB : SELECT bài đăng + comments
+DB --> PC : data
+PC --> Web : Render
+deactivate PC
+Web --> B : Hiển thị bài đăng
+deactivate Web
+
+B -> Web : Viết bình luận
+activate Web
+Web -> PC : POST /posts/:id/comments
+activate PC
+PC -> BL : new BinhLuan(baiDangId, userId, noiDung)
+activate BL
+BL -> DB : INSERT INTO binh_luan
+DB --> BL : id
+BL --> PC : BinhLuan
+deactivate BL
+
+PC -> TB : notifyPostOwner(baiDang.userId)
+activate TB
+TB -> DB : INSERT INTO thong_bao
+TB --> A : Push notification (realtime)
+deactivate TB
+PC --> Web : 201 Created
+deactivate PC
+Web --> B : Hiển thị bình luận
+deactivate Web
+
+note over PC, TB #fffbeb
+  **Observer pattern** — PostController phát event,
+  ThongBaoService lắng nghe & gửi push notification.
+end note
+
+@enduml
+
+' ============================================================
+@startuml TheBunny_Sequence_PvP
+
+!theme cerulean-outline
+
+' ===== Layout & Typography (đồng bộ) =====
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam padding 4
+skinparam ParticipantPadding 24
+skinparam BoxPadding 14
+skinparam sequenceMessageAlign center
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+skinparam ActorStyle awesome
+skinparam ActorBorderColor #1e293b
+skinparam ActorBackgroundColor #ffffff
+skinparam ActorFontStyle bold
+
+skinparam ParticipantBorderColor #475569
+skinparam ParticipantBackgroundColor #ffffff
+skinparam ParticipantFontStyle bold
+skinparam ParticipantFontColor #0f172a
+skinparam DatabaseBackgroundColor #fee2e2
+skinparam DatabaseBorderColor #b91c1c
+
+skinparam SequenceLifeLineBorderColor #cbd5e1
+skinparam SequenceLifeLineBackgroundColor #f1f5f9
+skinparam SequenceGroupBodyBackgroundColor #f8fafc
+skinparam SequenceGroupBorderColor #94a3b8
+skinparam SequenceGroupFontStyle bold
+skinparam SequenceGroupFontColor #1e293b
+skinparam SequenceDividerBackgroundColor #e2e8f0
+skinparam SequenceDividerBorderColor #94a3b8
+skinparam SequenceDividerFontStyle bold
+
+skinparam SequenceArrowColor #475569
+skinparam SequenceArrowThickness 1.2
+skinparam SequenceArrowFontColor #334155
+skinparam SequenceArrowFontSize 11
+
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title Sequence Diagram (2/3) — Thách đấu PvP end-to-end
+
+actor "Người chơi 1" as P1 #E0E7FF
+actor "Người chơi 2" as P2 #FCE7F3
+box "Competition Domain" #FFF7ED
+  participant "MatchService"   as MS
+  participant "PhongThachDau"  as PTD
+  participant "TranDau"        as TD
+  participant "CauHoi"         as CH
+  participant "HangThoService" as HTS
+end box
+database "MariaDB" as DB
+
+== Tạo phòng & tham gia ==
+P1 -> MS : createRoom(boDeId)
+activate MS
+MS -> PTD : new PhongThachDau(boDeId)
+activate PTD
+PTD -> DB : INSERT INTO phong_thach_dau
+PTD --> MS : phongId
+deactivate PTD
+MS --> P1 : phongId
+deactivate MS
+
+P2 -> MS : joinRoom(phongId)
+activate MS
+MS -> DB : INSERT user_phong_thach_dau (P1, P2)
+MS --> P2 : joined
+deactivate MS
+
+== Khởi tạo trận đấu ==
+MS -> TD : new TranDau(phongId, P1, P2)
+activate TD
+TD -> DB : INSERT trang_thai='cho'
+MS -> TD : start()
+TD -> DB : UPDATE trang_thai='dang_dau'\n          started_at=NOW()
+
+== Vòng câu hỏi ==
+loop Mỗi câu hỏi trong bộ đề
+  MS -> CH : nextQuestion(boDeId)
+  activate CH
+  CH -> DB : SELECT * FROM cau_hoi
+  CH --> MS : question
+  deactivate CH
+  par Gửi đồng thời
+    MS -> P1 : show question
+  also
+    MS -> P2 : show question
+  end
+  P1 --> MS : answer
+  P2 --> MS : answer
+  MS -> TD : updateScore(P1, P2)
+end
+
+== Kết thúc ==
+MS -> TD : end()
+TD -> DB : UPDATE trang_thai='ket_thuc'\n          ended_at=NOW()
+deactivate TD
+MS -> HTS : updateRank(winner, loser)
+activate HTS
+HTS -> DB : UPDATE user_hang_tho
+par
+  HTS --> P1 : Cập nhật hạng mới
+also
+  HTS --> P2 : Cập nhật hạng mới
+end
+deactivate HTS
+
+note over MS, HTS #fffbeb
+  Kết thúc trận đấu kéo theo cập nhật bảng xếp hạng
+  (HangTho) cho **cả hai** người chơi.
+end note
+
+@enduml
+
+' ============================================================
+@startuml TheBunny_Sequence_Report
+
+!theme cerulean-outline
+
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam padding 4
+skinparam ParticipantPadding 24
+skinparam BoxPadding 14
+skinparam sequenceMessageAlign center
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+skinparam ActorStyle awesome
+skinparam ActorBorderColor #1e293b
+skinparam ActorBackgroundColor #ffffff
+skinparam ActorFontStyle bold
+
+skinparam ParticipantBorderColor #475569
+skinparam ParticipantBackgroundColor #ffffff
+skinparam ParticipantFontStyle bold
+skinparam ParticipantFontColor #0f172a
+skinparam DatabaseBackgroundColor #fee2e2
+skinparam DatabaseBorderColor #b91c1c
+
+skinparam SequenceLifeLineBorderColor #cbd5e1
+skinparam SequenceLifeLineBackgroundColor #f1f5f9
+skinparam SequenceGroupBodyBackgroundColor #f8fafc
+skinparam SequenceGroupBorderColor #94a3b8
+skinparam SequenceGroupFontStyle bold
+skinparam SequenceGroupFontColor #1e293b
+skinparam SequenceDividerBackgroundColor #e2e8f0
+skinparam SequenceDividerBorderColor #94a3b8
+skinparam SequenceDividerFontStyle bold
+
+skinparam SequenceArrowColor #475569
+skinparam SequenceArrowThickness 1.2
+skinparam SequenceArrowFontColor #334155
+skinparam SequenceArrowFontSize 11
+
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title Sequence Diagram (3/3) — Báo cáo vi phạm & xử lý
+
+actor "Người dùng"    as U   #DCFCE7
+actor "Quản trị viên" as QTV #FEF9C3
+box "Moderation Domain" #F1F5F9
+  participant "ModerationController" as MC
+  participant "BaoCaoViPham"         as BCVP
+  participant "User\n<<Entity>>"     as USR
+  participant "ThongBao"             as TB
+end box
+database "MariaDB" as DB
+
+== Người dùng gửi báo cáo ==
+U -> MC : POST /reports\n{bai_dang_id, ly_do}
+activate MC
+MC -> BCVP : new BaoCaoViPham(reporterId, baiDangId, lyDo)
+activate BCVP
+BCVP -> DB : INSERT trang_thai='Pending'
+BCVP --> MC : reportId
+deactivate BCVP
+MC --> U : 201 — đã ghi nhận
+
+MC -> TB : notifyAdmins("Có báo cáo mới")
+activate TB
+TB -> DB : INSERT INTO thong_bao (admins)
+TB --> QTV : Push notification
+deactivate TB
+deactivate MC
+
+== QTV duyệt báo cáo ==
+QTV -> MC : GET /reports?status=Pending
+activate MC
+MC -> DB : SELECT báo cáo
+MC --> QTV : danh sách
+deactivate MC
+
+QTV -> MC : POST /reports/:id/review {action}
+activate MC
+
+alt #DCFCE7 action == 'resolve' (xác nhận vi phạm)
+  MC -> BCVP : resolve()
+  activate BCVP
+  BCVP -> DB : UPDATE trang_thai='Resolved'
+  deactivate BCVP
+  MC -> USR : ban(nguoiBiBaoCaoId)
+  activate USR
+  USR -> DB : UPDATE status='Banned'
+  deactivate USR
+  MC -> TB : notify("Tài khoản bị khóa")
+else #FEE2E2 action == 'reject'
+  MC -> BCVP : reject()
+  activate BCVP
+  BCVP -> DB : UPDATE trang_thai='Rejected'
+  deactivate BCVP
+  MC -> TB : notify("Báo cáo bị từ chối")
+end
+
+MC --> QTV : Xong
+deactivate MC
+
+note over MC, USR #fffbeb
+  Khi **resolve**, hệ thống đồng thời:
+  cập nhật trạng thái báo cáo → ban user → gửi thông báo.
+end note
+
+@enduml

@@ -1,0 +1,381 @@
+@startuml TheBunny_OOP_ClassDiagram
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam linetype polyline
+skinparam nodesep 55
+skinparam ranksep 70
+skinparam padding 4
+skinparam shadowing false
+skinparam roundCorner 10
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+
+' ===== Class =====
+skinparam ClassBackgroundColor #ffffff
+skinparam ClassBorderColor #cbd5e1
+skinparam ClassBorderThickness 1
+skinparam ClassHeaderBackgroundColor #f8fafc
+skinparam ClassFontSize 13
+skinparam ClassFontStyle bold
+skinparam ClassAttributeFontSize 11
+skinparam ClassAttributeIconSize 0
+skinparam ClassStereotypeFontColor #ea580c
+skinparam ClassStereotypeFontSize 10
+
+' ===== Enum =====
+skinparam EnumBackgroundColor #fff7ed
+skinparam EnumBorderColor #fdba74
+
+' ===== Package =====
+skinparam PackageBorderColor #94a3b8
+skinparam PackageBorderThickness 1
+skinparam PackageFontSize 13
+skinparam PackageFontStyle bold
+skinparam PackageFontColor #1e293b
+skinparam PackageStyle rectangle
+
+' ===== Arrows =====
+skinparam ArrowColor #94a3b8
+skinparam ArrowThickness 1.1
+skinparam ArrowFontColor #64748b
+skinparam ArrowFontSize 10
+skinparam ArrowFontStyle italic
+
+hide circle
+hide empty members
+
+title TheBunny — Class Diagram\nMô hình hệ thống Mạng xã hội Học tập · Nhóm 10
+
+' ============================================================
+' ENUMERATIONS — đặt cùng hàng phía trên
+' ============================================================
+together {
+  enum UserType {
+    hoc_sinh
+    sinh_vien
+    giao_vien
+    quan_tri_vien
+  }
+  enum UserStatus {
+    Active
+    Banned
+    Pending
+  }
+  enum FriendStatus {
+    Pending
+    Accepted
+    Blocked
+  }
+  enum ApprovalStatus {
+    Pending
+    Approved
+    Rejected
+  }
+  enum ReportStatus {
+    Pending
+    Reviewed
+    Rejected
+    Resolved
+  }
+  enum MatchStatus {
+    cho
+    dang_dau
+    ket_thuc
+  }
+  enum AnswerChoice {
+    A
+    B
+    C
+    D
+  }
+}
+
+' ============================================================
+' 👤 USER DOMAIN — trung tâm
+' ============================================================
+package "User" as PKG_USER #E0E7FF {
+  class User {
+    +id : int <<PK>>
+    --
+    +username : String
+    +email : String
+    +passwordHash : String
+    +status : UserStatus
+    +userType : UserType
+    +roleLevel : int
+    +isOnline : boolean
+    +truongHoc : String
+    +giayToChungMinh : String
+    +createdAt : DateTime
+  }
+
+  class HoSoCaNhan {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    --
+    +thongTinDinhDanh : text
+    +createdAt : DateTime
+  }
+}
+
+' ============================================================
+' 📱 SOCIAL DOMAIN
+' ============================================================
+package "Social" as PKG_SOCIAL #DCFCE7 {
+  class BaiDang {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    --
+    +noiDung : text
+    +createdAt : DateTime
+  }
+
+  together {
+    class BinhLuan {
+      +id : int <<PK>>
+      +baiDangId : int <<FK>>
+      +userId : int <<FK>>
+      --
+      +noiDung : text
+      +createdAt : DateTime
+    }
+
+    class LuotChiaSe {
+      +id : int <<PK>>
+      +userId : int <<FK>>
+      +baiDangId : int <<FK>>
+    }
+
+    class LuotThich {
+      +userId : int <<PK,FK>>
+      +baiDangId : int <<PK,FK>>
+    }
+  }
+
+  class Hashtag {
+    +id : int <<PK>>
+    --
+    +tenHashtag : String
+  }
+
+  class BanCungTien {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    +friendUserId : int <<FK>>
+    --
+    +status : FriendStatus
+    +createdAt : DateTime
+  }
+}
+
+' ============================================================
+' 💬 MESSAGING DOMAIN
+' ============================================================
+package "Messaging" as PKG_MSG #FEF9C3 {
+  class CuocTroChuyen {
+    +id : int <<PK>>
+    +createdAt : DateTime
+  }
+
+  class CuocTroChuyenThanhVien {
+    +cuocTroChuyenId : int <<PK,FK>>
+    +userId : int <<PK,FK>>
+  }
+
+  class TinNhan {
+    +id : int <<PK>>
+    +cuocTroChuyenId : int <<FK>>
+    +senderUserId : int <<FK>>
+    --
+    +noiDung : text
+    +thoiGian : DateTime
+  }
+
+  class ThongBao {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    --
+    +noiDung : text
+    +isRead : boolean
+  }
+}
+
+' ============================================================
+' 📚 LEARNING DOMAIN
+' ============================================================
+package "Learning" as PKG_LEARN #FCE7F3 {
+  class TaiLieu {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    --
+    +tenTaiLieu : String
+    +fileUrl : String
+  }
+
+  class SuKien {
+    +id : int <<PK>>
+    --
+    +tieuDe : String
+    +thoiGian : DateTime
+  }
+
+  class ThanhVienSuKien {
+    +id : int <<PK>>
+    +suKienId : int <<FK>>
+    +userId : int <<FK>>
+    --
+    +trangThaiDuyet : ApprovalStatus
+  }
+}
+
+' ============================================================
+' 📝 QUIZ & EXAM DOMAIN
+' ============================================================
+package "Quiz & Exam" as PKG_QUIZ #F3E8FF {
+  class BoDe {
+    +id : int <<PK>>
+    --
+    +tenBoDe : String
+  }
+
+  class CauHoi {
+    +id : int <<PK>>
+    +boDeId : int <<FK>>
+    --
+    +noiDung : text
+    +luaChonA : String
+    +luaChonB : String
+    +luaChonC : String
+    +luaChonD : String
+    +dapAnDung : AnswerChoice
+  }
+
+  class PhienLuyenTap {
+    +id : int <<PK>>
+    +userId : int <<FK>>
+    --
+    +diemSo : int
+  }
+}
+
+' ============================================================
+' 🏆 COMPETITION DOMAIN
+' ============================================================
+package "Competition" as PKG_COMP #FFF7ED {
+  class PhongThachDau {
+    +id : int <<PK>>
+    +boDeId : int <<FK>>
+  }
+
+  class UserPhongThachDau {
+    +userId : int <<PK,FK>>
+    +phongThachDauId : int <<PK,FK>>
+  }
+
+  class TranDau {
+    +id : int <<PK>>
+    +phongThachDauId : int <<FK>>
+    --
+    +nguoiChoi1Id : int <<FK>>
+    +nguoiChoi2Id : int <<FK>>
+    +diemNguoi1 : int
+    +diemNguoi2 : int
+    +trangThai : MatchStatus
+    +startedAt : DateTime
+    +endedAt : DateTime
+  }
+
+  class HangTho {
+    +id : int <<PK>>
+    --
+    +tenHangTho : String
+  }
+
+  class UserHangTho {
+    +userId : int <<PK,FK>>
+    +hangThoId : int <<PK,FK>>
+  }
+}
+
+' ============================================================
+' 🛡️ MODERATION DOMAIN
+' ============================================================
+package "Moderation" as PKG_MOD #F1F5F9 {
+  class BaoCaoViPham {
+    +id : int <<PK>>
+    +nguoiBaoCaoId : int <<FK>>
+    --
+    +baiDangId : int <<FK,null>>
+    +nguoiBiBaoCaoId : int <<FK,null>>
+    +lyDo : text
+    +trangThai : ReportStatus
+  }
+
+  class BaoCaoThongKe {
+    +id : int <<PK>>
+    +quanTriUserId : int <<FK>>
+    --
+    +loaiBaoCao : String
+    +noiDungBaoCao : text
+  }
+}
+
+' ============================================================
+' RELATIONSHIPS — đơn giản hoá, mỗi cặp 1 edge
+' ============================================================
+
+' User core
+User "1" *-- "0..1" HoSoCaNhan
+
+' Social
+User "1" --> "0..*" BaiDang
+BaiDang "1" *-- "0..*" BinhLuan
+BaiDang "1" *-- "0..*" LuotChiaSe
+BaiDang "1" -- "0..*" LuotThich
+User "1" -- "0..*" LuotThich
+User "1" -- "0..*" BanCungTien
+
+' Messaging
+CuocTroChuyen "1" *-- "0..*" CuocTroChuyenThanhVien
+CuocTroChuyen "1" *-- "0..*" TinNhan
+User "1" -- "0..*" CuocTroChuyenThanhVien
+User "1" --> "0..*" ThongBao
+
+' Learning
+User "1" --> "0..*" TaiLieu
+SuKien "1" *-- "0..*" ThanhVienSuKien
+User "1" -- "0..*" ThanhVienSuKien
+
+' Quiz
+BoDe "1" *-- "0..*" CauHoi
+User "1" --> "0..*" PhienLuyenTap
+
+' Competition
+BoDe "1" -- "0..*" PhongThachDau
+PhongThachDau "1" *-- "0..*" UserPhongThachDau
+PhongThachDau "1" *-- "0..*" TranDau
+User "1" -- "0..*" UserPhongThachDau
+User "1" -- "0..*" TranDau : player
+HangTho "1" -- "0..*" UserHangTho
+User "1" -- "0..*" UserHangTho
+
+' Moderation
+User "1" --> "0..*" BaoCaoViPham
+User "1" --> "0..*" BaoCaoThongKe : admin only
+
+' Enum dependencies (gom lại bằng dotted, ít gây rối)
+User .[hidden]. UserStatus
+User ..> UserType
+BanCungTien ..> FriendStatus
+ThanhVienSuKien ..> ApprovalStatus
+CauHoi ..> AnswerChoice
+TranDau ..> MatchStatus
+BaoCaoViPham ..> ReportStatus
+
+@enduml

@@ -1,0 +1,148 @@
+@startuml TheBunny_Component_Diagram
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam shadowing false
+skinparam roundCorner 12
+skinparam padding 5
+skinparam nodesep 38
+skinparam ranksep 55
+skinparam linetype ortho
+skinparam componentStyle uml2
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+' ===== Component =====
+skinparam component {
+  BackgroundColor #ffffff
+  BorderColor     #475569
+  BorderThickness 1.2
+  FontStyle       bold
+  FontColor       #0f172a
+}
+
+' ===== Package =====
+skinparam package {
+  BorderColor     #94a3b8
+  BorderThickness 1.2
+  FontStyle       bold
+  FontColor       #1e293b
+  FontSize        13
+  Style           rectangle
+}
+
+' ===== Interface / Database / Storage =====
+skinparam interfaceBackgroundColor #bfdbfe
+skinparam interfaceBorderColor     #1d4ed8
+skinparam databaseBackgroundColor  #fee2e2
+skinparam databaseBorderColor      #b91c1c
+skinparam storageBackgroundColor   #fef3c7
+skinparam storageBorderColor       #b45309
+
+' ===== Actor =====
+skinparam ActorStyle awesome
+skinparam ActorBorderColor #1e293b
+skinparam ActorBackgroundColor #ffffff
+skinparam ActorFontStyle bold
+
+' ===== Arrows =====
+skinparam ArrowColor #64748b
+skinparam ArrowThickness 1.2
+skinparam ArrowFontColor #334155
+skinparam ArrowFontSize 10
+skinparam ArrowFontStyle italic
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title TheBunny — Component Diagram\nKiến trúc 3-tier theo Domain · Nhóm 10
+
+actor "User" as user
+
+package "Presentation Layer (Client)" as P_PRES #DBEAFE {
+  [Web UI\n(HTML/CSS/JS)] as WebUI
+  [Mobile App\n(PWA)]     as Mobile
+}
+
+package "Business Layer (PHP 8.0)" as P_BIZ #DCFCE7 {
+
+  package "Domain Services" as P_DOM #F0FDF4 {
+    component "UserService"                       as US
+    component "SocialService\n(Post/Comment/Like)" as SS
+    component "MessagingService\n(Chat/Notify)"   as MS
+    component "LearningService\n(Document/Event)" as LS
+    component "QuizService\n(Question/Practice)"  as QS
+    component "CompetitionService\n(Match/Rank)"  as CS
+    component "ModerationService\n(Report/Stats)" as MOS
+  }
+
+  package "Cross-cutting" as P_CC #ECFCCB {
+    component "AuthMiddleware"        as AM
+    component "RBAC\n(Role-based AC)" as RBAC
+    component "EventBus\n(Observer)"  as EB
+  }
+
+  interface "REST API" as API
+}
+
+package "Data Layer" as P_DATA #FEF9C3 {
+  database "MariaDB\nthebunny_nhom10"     as DB
+  storage  "File Storage\n(tài liệu, ảnh)" as FS
+}
+
+' === Connections ===
+user   --> WebUI
+user   --> Mobile
+
+WebUI  --> API   : HTTPS
+Mobile --> API   : HTTPS
+
+API    --> AM
+AM     --> RBAC
+
+RBAC --> US
+RBAC --> SS
+RBAC --> MS
+RBAC --> LS
+RBAC --> QS
+RBAC --> CS
+RBAC --> MOS
+
+US  --> DB
+SS  --> DB
+MS  --> DB
+LS  --> DB
+LS  --> FS
+QS  --> DB
+CS  --> DB
+MOS --> DB
+
+' Event bus (Observer)
+SS ..> EB : publish
+MS ..> EB : publish
+CS ..> EB : publish
+EB ..> MS : subscribe (notify)
+
+note right of EB #fffbeb
+  **Observer pattern** —
+  các service phát event,
+  MessagingService gửi
+  thông báo cho user.
+end note
+
+note bottom of RBAC #fffbeb
+  **4 vai trò:**
+  hoc_sinh · sinh_vien
+  giao_vien · quan_tri_vien
+end note
+
+@enduml

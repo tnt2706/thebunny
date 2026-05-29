@@ -1,0 +1,214 @@
+' ============================================================
+' TheBunny — State Diagrams (Nhóm 10)
+' Style đồng bộ với class & sequence diagram
+' ============================================================
+
+@startuml TheBunny_State_TranDau
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam shadowing false
+skinparam roundCorner 14
+skinparam padding 5
+skinparam nodesep 45
+skinparam ranksep 55
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+' ===== State =====
+skinparam state {
+  BackgroundColor       #ffffff
+  BorderColor           #475569
+  BorderThickness       1.4
+  FontStyle             bold
+  FontColor             #0f172a
+  AttributeFontSize     11
+  AttributeFontColor    #475569
+  StartColor            #1e293b
+  EndColor              #1e293b
+}
+
+' ===== Arrows =====
+skinparam ArrowColor #64748b
+skinparam ArrowThickness 1.3
+skinparam ArrowFontColor #334155
+skinparam ArrowFontSize 11
+skinparam ArrowFontStyle italic
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title State Diagram (1/3) — TranDau (Trận đấu PvP)
+
+state "cho"      as cho      #E0E7FF
+state "dang_dau" as dang_dau #DCFCE7
+state "ket_thuc" as ket_thuc #FEF9C3
+
+[*]      --> cho      : khởi tạo trận
+
+cho      : entry / started_at = null
+cho      : entry / ended_at   = null
+cho      --> dang_dau : start()\n[cả 2 người chơi sẵn sàng]
+
+dang_dau : entry / started_at = NOW()
+dang_dau : do    / cập nhật điểm theo câu trả lời
+dang_dau --> ket_thuc : end()\n[hết câu hỏi hoặc 1 bên thoát]
+
+ket_thuc : entry / ended_at = NOW()
+ket_thuc : entry / cập nhật user_hang_tho
+ket_thuc --> [*]
+
+note right of cho
+  **Trạng thái chờ**
+  Phòng đã có 2 người
+  nhưng chưa bấm "Bắt đầu"
+end note
+
+note right of dang_dau
+  Cả hai người chơi
+  trả lời câu hỏi **song song**
+end note
+
+@enduml
+
+' ============================================================
+@startuml TheBunny_State_BaoCaoViPham
+
+!theme cerulean-outline
+
+skinparam shadowing false
+skinparam roundCorner 14
+skinparam padding 5
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+skinparam state {
+  BackgroundColor       #ffffff
+  BorderColor           #475569
+  BorderThickness       1.4
+  FontStyle             bold
+  FontColor             #0f172a
+  AttributeFontSize     11
+  AttributeFontColor    #475569
+  StartColor            #1e293b
+  EndColor              #1e293b
+}
+
+skinparam ArrowColor #64748b
+skinparam ArrowThickness 1.3
+skinparam ArrowFontColor #334155
+skinparam ArrowFontSize 11
+skinparam ArrowFontStyle italic
+
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title State Diagram (2/3) — BaoCaoViPham (Báo cáo vi phạm)
+
+state "Pending"  as Pending  #FEF9C3
+state "Reviewed" as Reviewed #E0E7FF
+state "Resolved" as Resolved #DCFCE7
+state "Rejected" as Rejected #FEE2E2
+
+[*] --> Pending : người dùng tạo
+
+Pending  : entry / created_at = NOW()
+Pending  : entry / thông báo cho admins
+Pending  --> Reviewed : QTV xem xét\n[chưa quyết định]
+Pending  --> Rejected : QTV từ chối\n[không vi phạm]
+
+Reviewed --> Resolved : xác nhận vi phạm\n[ban hoặc xóa nội dung]
+Reviewed --> Rejected : sau xem xét\n[không vi phạm]
+
+Resolved --> [*]
+Rejected --> [*]
+
+note right of Resolved
+  Khi vào **Resolved**, hệ thống đồng thời:
+  • users.status = 'Banned'
+  • thong_bao gửi tới user vi phạm
+end note
+
+@enduml
+
+' ============================================================
+@startuml TheBunny_State_BanCungTien
+
+!theme cerulean-outline
+
+skinparam shadowing false
+skinparam roundCorner 14
+skinparam padding 5
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+skinparam state {
+  BackgroundColor       #ffffff
+  BorderColor           #475569
+  BorderThickness       1.4
+  FontStyle             bold
+  FontColor             #0f172a
+  AttributeFontSize     11
+  AttributeFontColor    #475569
+  StartColor            #1e293b
+  EndColor              #1e293b
+}
+
+skinparam ArrowColor #64748b
+skinparam ArrowThickness 1.3
+skinparam ArrowFontColor #334155
+skinparam ArrowFontSize 11
+skinparam ArrowFontStyle italic
+
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title State Diagram (3/3) — BanCungTien (Lời mời kết bạn)
+
+state "Pending"  as Pending  #FEF9C3
+state "Accepted" as Accepted #DCFCE7
+state "Blocked"  as Blocked  #FEE2E2
+
+[*] --> Pending : A gửi lời mời cho B
+
+Pending  --> Accepted : B chấp nhận
+Pending  --> [*]      : B từ chối / hủy
+
+Accepted --> Blocked  : 1 bên chặn
+Accepted --> [*]      : hủy kết bạn
+Blocked  --> [*]      : xóa quan hệ
+
+note right of Accepted
+  Quan hệ **2 chiều** —
+  có thể nhắn tin & xem feed nhau
+end note
+
+note right of Blocked
+  Quan hệ bị **khóa**,
+  không tương tác được
+end note
+
+@enduml

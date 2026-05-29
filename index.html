@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TheBunny — System Design Report MMXXVI</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        colors: {
+          paper:    { DEFAULT: '#f3ede1', card: '#faf5e9', soft: '#ebe2cd', deep: '#e4d8bd' },
+          ink:      { DEFAULT: '#1d1c1a', 2: '#2d2926', 3: '#5a534a', 4: '#8a8378', 5: '#b0a695' },
+          line:     { DEFAULT: '#d6cdb8', soft: '#e3dccb' },
+          accent:   { DEFAULT: '#983618', soft: '#f0dcc8', ink: '#6e2811' },
+          ember:    { DEFAULT: '#1d1c1a' },
+        },
+        animation: {
+          'fade-up': 'fadeUp .7s cubic-bezier(.22,1,.36,1) both',
+        },
+        keyframes: {
+          fadeUp: { '0%': { opacity: 0, transform: 'translateY(14px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
+        },
+      },
+    },
+  }
+</script>
+
+<style type="text/tailwindcss">
+  @layer base {
+    html { scroll-padding-top: 80px; }
+    body {
+      @apply font-sans text-[16px] leading-[1.65] text-ink-2 bg-paper antialiased;
+      font-feature-settings: "kern", "ss01", "cv11", "calt";
+    }
+    h1, h2, h3, h4 { @apply text-ink; font-feature-settings: "kern", "ss01"; }
+    ::selection { @apply bg-accent text-paper-card; }
+    ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
+    ::-webkit-scrollbar-thumb { @apply bg-ink-5 rounded-full; }
+    ::-webkit-scrollbar-thumb:hover { @apply bg-ink-4; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  }
+
+  @layer components {
+    /* === Label === */
+    .label {
+      @apply inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-4;
+    }
+    .label::before { content: ''; @apply w-5 h-px bg-accent inline-block; }
+    .label-plain { @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-4; }
+
+    /* === Code chip === */
+    .k {
+      @apply text-[0.9em] font-medium px-1.5 py-px rounded
+             bg-accent-soft text-accent-ink tracking-tight;
+    }
+
+    /* === Chapter === */
+    .chapter { @apply relative scroll-mt-20 py-20 sm:py-28; }
+    .chapter + .chapter { @apply border-t border-line; }
+    .chapter-head { @apply grid grid-cols-1 sm:grid-cols-[80px_1fr] gap-x-6 gap-y-3 mb-12 sm:mb-16; }
+    .chapter-num {
+      @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-4 pt-1.5;
+    }
+    .chapter-title {
+      @apply text-[2.25rem] sm:text-[3rem] leading-[1.05] tracking-[-0.035em]
+             text-ink font-semibold mb-5 max-w-[24ch];
+    }
+    .chapter-title em { @apply not-italic text-accent font-semibold; }
+    .chapter-lede {
+      @apply text-[1.0625rem] sm:text-[1.125rem] text-ink-3 leading-[1.6] max-w-[42rem] font-normal;
+    }
+
+    /* === Subhead inside chapter === */
+    .sub-tag {
+      @apply text-[10.5px] font-semibold uppercase tracking-[0.2em] text-accent mb-1.5 block mt-16;
+    }
+    .sub {
+      @apply text-[1.5rem] sm:text-[1.75rem] leading-[1.15] tracking-[-0.02em] text-ink mb-3 font-semibold;
+    }
+    .sub-lede { @apply text-[15px] text-ink-3 leading-[1.6] max-w-[42rem] mb-6; }
+
+    /* === Prose column === */
+    .prose-col { @apply max-w-[42rem]; }
+
+    /* === Drop cap (Stripe Press style) === */
+    .dropcap::first-letter {
+      @apply text-accent font-semibold;
+      font-size: 4.5em;
+      line-height: 0.9;
+      float: left;
+      padding: 0.05em 0.1em 0 0;
+      margin-top: 0.05em;
+    }
+
+    /* === Bento / list rows === */
+    .row {
+      @apply grid grid-cols-[40px_1fr] sm:grid-cols-[80px_1fr_auto] gap-x-5 sm:gap-x-8
+             py-6 border-t border-line transition-colors;
+    }
+    .row:last-child { @apply border-b border-line; }
+    .row:hover { @apply bg-paper-card/60; }
+    .row-num {
+      @apply text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-4 pt-1;
+    }
+    .row-body {
+      @apply min-w-0;
+    }
+    .row-title {
+      @apply text-[1.0625rem] sm:text-[1.125rem] text-ink font-semibold leading-snug tracking-[-0.01em] mb-1;
+    }
+    .row-desc {
+      @apply text-[14.5px] text-ink-3 leading-[1.55];
+    }
+    .row-tag {
+      @apply hidden sm:flex items-center self-start text-[11px] font-medium uppercase tracking-[0.16em] text-ink-4 pt-1.5;
+    }
+
+    /* === Plain card (used only where structure demands) === */
+    .card {
+      @apply relative bg-paper-card border border-line rounded-lg p-6
+             transition-colors duration-200;
+    }
+    .card:hover { @apply border-ink-4/50; }
+    .card-num {
+      @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-accent mb-3 block;
+    }
+    .card-title {
+      @apply text-[1.0625rem] text-ink font-semibold mb-2 leading-snug tracking-[-0.01em];
+    }
+    .card-body { @apply text-[14px] text-ink-3 leading-[1.6]; }
+
+    /* === Diagram === */
+    .diagram {
+      @apply relative min-h-[200px] flex items-center justify-center
+             bg-paper-card border border-line rounded-lg p-6 sm:p-10 overflow-auto;
+    }
+    .diagram svg, .diagram img { @apply max-w-full h-auto block mx-auto; }
+    .diagram-loading {
+      @apply flex items-center gap-2.5 text-[13px] font-medium text-ink-4;
+    }
+    .diagram-loading::before {
+      content: ''; width: 12px; height: 12px;
+      @apply rounded-full border-2 border-line border-t-accent animate-spin;
+    }
+    .diagram-error { @apply text-[13px] font-medium text-rose-800; }
+    figure { @apply mt-8; }
+    figcaption {
+      @apply text-center text-[12px] text-ink-4 mt-4 font-medium tracking-[0.04em];
+    }
+    figcaption strong { @apply font-semibold text-ink-2 mr-1.5; }
+
+    /* === Table === */
+    .tbl-wrap { @apply overflow-x-auto border-y border-line my-10; }
+    table.refined { @apply w-full text-[14px]; }
+    table.refined th {
+      @apply text-left px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.18em]
+             text-ink-4 border-b border-line whitespace-nowrap;
+    }
+    table.refined td { @apply px-5 py-3.5 border-b border-line-soft text-ink-2 align-top; }
+    table.refined tr:last-child td { @apply border-b-0; }
+    table.refined tr:hover td { @apply bg-paper-card/70; }
+    table.refined td b { @apply font-semibold text-ink; }
+    table.refined td .mono-cell {
+      @apply text-[12.5px] font-medium px-1.5 py-0.5 rounded
+             bg-accent-soft text-accent-ink tracking-tight;
+    }
+
+    /* === CRUD pills === */
+    .crud {
+      @apply inline-block min-w-[20px] h-[20px] px-1 rounded-sm text-center
+             text-[10px] font-semibold leading-[20px] text-paper-card;
+    }
+    .crud-c { background:#0a6d3a; }
+    .crud-r { background:#1d3f8a; }
+    .crud-u { background:#8a5a0a; }
+    .crud-d { background:#8a1a2a; }
+    .crud-cell { @apply inline-flex flex-wrap items-center gap-1; }
+    .crud-note { @apply text-[11px] text-ink-4 ml-1; }
+    .crud-x { @apply text-ink-5; }
+
+    /* === TOC === */
+    .toc-link {
+      @apply flex items-baseline gap-3 py-1.5 text-[13px] text-ink-4
+             transition-colors duration-200 hover:text-ink;
+    }
+    .toc-link.active { @apply text-accent font-semibold; }
+    .toc-num { @apply text-[11px] font-medium text-ink-5 tabular-nums w-6; }
+    .toc-link.active .toc-num { @apply text-accent; }
+
+    /* === Rule row === */
+    .rule-row {
+      @apply grid grid-cols-[64px_1fr] gap-x-5 py-5 border-t border-line transition-colors;
+    }
+    .rule-row:hover { @apply bg-paper-card/60; }
+    .rule-row:last-child { @apply border-b border-line; }
+    .rule-id {
+      @apply text-[11px] font-semibold text-accent tracking-[0.12em] uppercase pt-1 tabular-nums;
+    }
+    .rule-title { @apply text-[15px] text-ink font-semibold mb-1 tracking-[-0.005em]; }
+    .rule-detail { @apply text-[13.5px] text-ink-3 leading-relaxed; }
+  }
+</style>
+
+<style>
+  .progress { position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 60; background: transparent; pointer-events: none; }
+  .progress::after {
+    content: ''; display: block; height: 100%; width: var(--p, 0%);
+    background: #983618; transition: width .1s linear;
+  }
+  /* Soft warm vignette */
+  .vignette {
+    background:
+      radial-gradient(ellipse at top, rgba(152,54,24,.04), transparent 60%),
+      linear-gradient(180deg, transparent, rgba(29,28,26,.03));
+  }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- ====== NAV ====== -->
+<header class="no-print sticky top-0 z-50 backdrop-blur-md bg-paper/85 border-b border-line">
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-10 h-[64px] flex items-center justify-between gap-6">
+    <a href="#top" class="flex items-center gap-2.5">
+      <span class="w-6 h-6 rounded-sm bg-ink grid place-items-center text-paper-card text-[10px] font-bold tracking-tight">TB</span>
+      <span class="text-[14.5px] font-semibold tracking-[-0.01em] text-ink">TheBunny</span>
+      <span class="hidden sm:inline text-[12px] text-ink-4">— Report MMXXVI</span>
+    </a>
+
+    <nav class="hidden lg:flex items-center gap-1 text-[13px] font-medium text-ink-3">
+      <a href="#overview"     class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Tổng quan</a>
+      <a href="#architecture" class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Kiến trúc</a>
+      <a href="#class-full"   class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Class</a>
+      <a href="#domains"      class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Domains</a>
+      <a href="#sequences"    class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Sequence</a>
+      <a href="#patterns"     class="px-3 py-2 rounded hover:bg-paper-soft hover:text-ink transition-colors">Patterns</a>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <span class="hidden sm:inline-flex text-[11px] font-medium text-ink-4 px-2.5 py-1 rounded border border-line">v1.0 — 05·28</span>
+      <button onclick="window.print()" class="text-[12.5px] font-medium text-ink-3 hover:text-ink px-3 py-2 rounded hover:bg-paper-soft transition-colors inline-flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span class="hidden sm:inline">PDF</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ====== HERO — BOOK JACKET ====== -->
+<section id="top" class="relative vignette border-b border-line">
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-10 pt-20 sm:pt-28 pb-16 sm:pb-20">
+
+    <!-- Top meta row -->
+    <div class="flex items-baseline justify-between gap-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-4 mb-20 sm:mb-32 animate-fade-up">
+      <span>Đồ án Cơ sở dữ liệu</span>
+      <span class="hidden sm:inline text-ink-5">·</span>
+      <span class="text-ink">Nhóm 10</span>
+      <span class="hidden sm:inline text-ink-5 flex-1 h-px bg-line self-center mx-4"></span>
+      <span class="text-ink-4">MMXXVI</span>
+    </div>
+
+    <!-- Title -->
+    <h1 class="animate-fade-up" style="animation-delay:.08s">
+      <span class="block text-[clamp(2.5rem,7vw,5.5rem)] leading-[1.05] tracking-[-0.03em] font-medium text-ink-3 mb-2">
+        Thiết kế hệ thống
+      </span>
+      <span class="block text-[clamp(4rem,14vw,11rem)] leading-[0.95] tracking-[-0.045em] font-bold text-ink">
+        TheBunny<span class="text-accent">.</span>
+      </span>
+    </h1>
+
+    <!-- Lede + edition -->
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-10 md:gap-16 items-end mt-16 sm:mt-20 animate-fade-up" style="animation-delay:.16s">
+      <p class="text-[1.125rem] sm:text-[1.25rem] leading-[1.5] text-ink-3 max-w-[36rem] font-normal">
+        Báo cáo phân tích thiết kế hướng đối tượng cho nền tảng mạng xã hội học tập, mô hình hoá đầy đủ theo chuẩn UML 2.5 với mười ba sơ đồ trên sáu loại biểu đồ.
+      </p>
+      <dl class="grid grid-cols-2 md:grid-cols-1 gap-x-8 gap-y-1 text-[12px] text-ink-4">
+        <dt class="font-semibold uppercase tracking-[0.18em]">Phát hành</dt>
+        <dd class="text-ink-2 font-medium">28 · 05 · 2026</dd>
+        <dt class="font-semibold uppercase tracking-[0.18em] md:mt-3">Phiên bản</dt>
+        <dd class="text-ink-2 font-medium">v1.0 — Final</dd>
+      </dl>
+    </div>
+
+    <!-- Stats — table-like, no card chrome -->
+    <div class="mt-20 sm:mt-24 grid grid-cols-2 md:grid-cols-4 border-t border-line animate-fade-up" style="animation-delay:.24s">
+      <div class="border-r border-line md:border-r-line py-6 sm:py-7 pr-4">
+        <div class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-3">Entities</div>
+        <div class="text-[2.5rem] sm:text-[3rem] leading-none font-semibold text-ink tabular-nums tracking-[-0.02em]">25</div>
+        <div class="text-[12.5px] text-ink-4 mt-2">bảng dữ liệu</div>
+      </div>
+      <div class="border-r-0 md:border-r border-line py-6 sm:py-7 pr-4 pl-4 md:pl-6">
+        <div class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-3">Domains</div>
+        <div class="text-[2.5rem] sm:text-[3rem] leading-none font-semibold text-ink tabular-nums tracking-[-0.02em]">07</div>
+        <div class="text-[12.5px] text-ink-4 mt-2">phân hệ nghiệp vụ</div>
+      </div>
+      <div class="border-r border-line border-t md:border-t-0 py-6 sm:py-7 pr-4 md:pl-6">
+        <div class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-3">Diagrams</div>
+        <div class="text-[2.5rem] sm:text-[3rem] leading-none font-semibold text-ink tabular-nums tracking-[-0.02em]">13</div>
+        <div class="text-[12.5px] text-ink-4 mt-2">sơ đồ UML 2.5</div>
+      </div>
+      <div class="border-t md:border-t-0 border-line py-6 sm:py-7 pl-4 md:pl-6">
+        <div class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-3">Database</div>
+        <div class="text-[1.75rem] sm:text-[2rem] leading-none font-semibold text-ink tracking-[-0.015em]">MariaDB</div>
+        <div class="text-[12.5px] text-ink-4 mt-2">10.4 · MIT</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== ABSTRACT — drop cap ====== -->
+<section class="border-b border-line">
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-10 py-20 sm:py-24">
+    <div class="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-8 lg:gap-16">
+      <div>
+        <div class="label">Tóm tắt</div>
+        <div class="text-[11px] text-ink-4 mt-3 leading-relaxed">Cô đọng nội dung báo cáo trong một đoạn duy nhất.</div>
+      </div>
+      <p class="dropcap text-[1.25rem] sm:text-[1.375rem] leading-[1.55] tracking-[-0.005em] text-ink-2 max-w-[40rem]">
+        TheBunny là nền tảng mạng xã hội học tập kết hợp bốn nhóm chức năng — tương tác xã hội, học tập, luyện tập &amp; thi đấu, và kiểm duyệt. Báo cáo trình bày kiến trúc ba lớp, sơ đồ lớp đầy đủ, biểu đồ trạng thái cho các thực thể có vòng đời phức tạp, cùng các luồng tương tác chính của hệ thống.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====== MAIN ====== -->
+<div class="max-w-[1200px] mx-auto px-6 lg:px-10 grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-0 lg:gap-16">
+
+  <aside class="hidden lg:block no-print">
+    <div class="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto py-12">
+      <div class="text-[10.5px] font-semibold uppercase tracking-[0.22em] text-ink-4 mb-5">Mục lục</div>
+      <nav class="flex flex-col">
+        <a href="#overview"     class="toc-link"><span class="toc-num">01</span>Tổng quan</a>
+        <a href="#architecture" class="toc-link"><span class="toc-num">02</span>Kiến trúc</a>
+        <a href="#class-full"   class="toc-link"><span class="toc-num">03</span>Class Diagram</a>
+        <a href="#domains"      class="toc-link"><span class="toc-num">04</span>Phân hệ</a>
+        <a href="#usecase"      class="toc-link"><span class="toc-num">05</span>Use Cases</a>
+        <a href="#states"       class="toc-link"><span class="toc-num">06</span>State Machines</a>
+        <a href="#sequences"    class="toc-link"><span class="toc-num">07</span>Sequence</a>
+        <a href="#deployment"   class="toc-link"><span class="toc-num">08</span>Deployment</a>
+        <a href="#crud"         class="toc-link"><span class="toc-num">09</span>Phân quyền</a>
+        <a href="#patterns"     class="toc-link"><span class="toc-num">10</span>Patterns</a>
+        <a href="#rules"        class="toc-link"><span class="toc-num">11</span>Rules</a>
+        <a href="#glossary"     class="toc-link"><span class="toc-num">12</span>Thuật ngữ</a>
+      </nav>
+    </div>
+  </aside>
+
+  <main class="min-w-0 pb-24">
+
+    <!-- ===== 01 OVERVIEW ===== -->
+    <section id="overview" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương I</div>
+        <div>
+          <div class="label mb-5">Tổng quan</div>
+          <h2 class="chapter-title">Bảy phân hệ, một <em>User</em> trung tâm.</h2>
+          <p class="chapter-lede">Hệ thống được phân rã thành bảy phân hệ độc lập theo nghiệp vụ. Tất cả đều có quan hệ trực tiếp với thực thể <code class="k">User</code> — đối tượng trung tâm của toàn bộ kiến trúc.</p>
+        </div>
+      </div>
+
+      <!-- Domain list — Stripe Press editorial row style -->
+      <div>
+        <div class="row">
+          <div class="row-num">01</div>
+          <div class="row-body">
+            <h3 class="row-title">User</h3>
+            <p class="row-desc">Định danh, hồ sơ cá nhân và phân quyền bốn vai trò: học sinh, sinh viên, giáo viên, quản trị viên. Đối tượng trung tâm của hệ thống.</p>
+          </div>
+          <div class="row-tag">Identity</div>
+        </div>
+        <div class="row">
+          <div class="row-num">02</div>
+          <div class="row-body">
+            <h3 class="row-title">Social</h3>
+            <p class="row-desc">Bài đăng, bình luận, lượt thích, lượt chia sẻ, hashtag và quan hệ kết bạn giữa các người dùng.</p>
+          </div>
+          <div class="row-tag">Interaction</div>
+        </div>
+        <div class="row">
+          <div class="row-num">03</div>
+          <div class="row-body">
+            <h3 class="row-title">Messaging</h3>
+            <p class="row-desc">Trò chuyện một-một và nhóm, thông báo cá nhân thời gian thực qua EventBus.</p>
+          </div>
+          <div class="row-tag">Realtime</div>
+        </div>
+        <div class="row">
+          <div class="row-num">04</div>
+          <div class="row-body">
+            <h3 class="row-title">Learning</h3>
+            <p class="row-desc">Tài liệu học tập do người dùng đóng góp và các sự kiện học thuật trong cộng đồng.</p>
+          </div>
+          <div class="row-tag">Content</div>
+        </div>
+        <div class="row">
+          <div class="row-num">05</div>
+          <div class="row-body">
+            <h3 class="row-title">Quiz &amp; Exam</h3>
+            <p class="row-desc">Bộ đề trắc nghiệm bốn đáp án và phiên luyện tập cá nhân, lưu điểm số để theo dõi tiến độ.</p>
+          </div>
+          <div class="row-tag">Practice</div>
+        </div>
+        <div class="row">
+          <div class="row-num">06</div>
+          <div class="row-body">
+            <h3 class="row-title">Competition</h3>
+            <p class="row-desc">Phòng thách đấu, trận đấu PvP và hệ thống xếp hạng (hạng thơ) cho người chơi.</p>
+          </div>
+          <div class="row-tag">PvP</div>
+        </div>
+        <div class="row">
+          <div class="row-num">07</div>
+          <div class="row-body">
+            <h3 class="row-title">Moderation</h3>
+            <p class="row-desc">Báo cáo vi phạm từ người dùng và báo cáo thống kê định kỳ do quản trị viên tạo.</p>
+          </div>
+          <div class="row-tag">Governance</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 02 ARCHITECTURE ===== -->
+    <section id="architecture" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương II</div>
+        <div>
+          <div class="label mb-5">Kiến trúc</div>
+          <h2 class="chapter-title">Kiến trúc <em>ba lớp</em>.</h2>
+          <p class="chapter-lede">Presentation → Business → Data. Các domain service nằm trong lớp Business, giao tiếp với client qua REST API và phối hợp lẫn nhau qua EventBus theo mô hình Observer.</p>
+        </div>
+      </div>
+
+      <figure>
+        <div class="diagram" data-puml="component"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 2.1</strong>Component Diagram — kiến trúc ba lớp với bảy domain service</figcaption>
+      </figure>
+
+      <div class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="card"><span class="card-num">Nguyên tắc 01</span><h4 class="card-title">Tách bạch ba lớp</h4><p class="card-body">Hiển thị, nghiệp vụ và dữ liệu không truy cập chéo. Mỗi lớp chỉ giao tiếp với lớp kề.</p></div>
+        <div class="card"><span class="card-num">Nguyên tắc 02</span><h4 class="card-title">Service đóng gói nghiệp vụ</h4><p class="card-body">Mỗi domain service đóng gói toàn bộ nghiệp vụ của domain, chỉ phơi bày qua REST API.</p></div>
+        <div class="card"><span class="card-num">Nguyên tắc 03</span><h4 class="card-title">EventBus giảm coupling</h4><p class="card-body">Service phát event thay vì gọi trực tiếp lẫn nhau — dễ mở rộng và dễ kiểm thử.</p></div>
+        <div class="card"><span class="card-num">Nguyên tắc 04</span><h4 class="card-title">Auth + RBAC là cổng chung</h4><p class="card-body">Mọi request phải qua tầng xác thực và phân quyền trước khi vào domain service.</p></div>
+      </div>
+    </section>
+
+    <!-- ===== 03 CLASS DIAGRAM ===== -->
+    <section id="class-full" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương III</div>
+        <div>
+          <div class="label mb-5">Sơ đồ lớp</div>
+          <h2 class="chapter-title">Class Diagram <em>đầy đủ</em>.</h2>
+          <p class="chapter-lede">Toàn bộ 25 thực thể và 7 enumeration, với các quan hệ composition, aggregation và association theo chuẩn UML 2.5.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="diagram" data-puml="class-full"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 3.1</strong>Class Diagram tổng thể — 25 entities, 7 enums</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 04 DOMAINS ===== -->
+    <section id="domains" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương IV</div>
+        <div>
+          <div class="label mb-5">Các phân hệ</div>
+          <h2 class="chapter-title">Chi tiết <em>bảy phân hệ</em>.</h2>
+          <p class="chapter-lede">Mỗi phân hệ được mô hình hoá độc lập với class diagram riêng, kèm bảng quy tắc nghiệp vụ và các ràng buộc dữ liệu cần đảm bảo ở lớp ứng dụng.</p>
+        </div>
+      </div>
+
+      <span class="sub-tag">§ 4.1 — User</span>
+      <h3 class="sub">Định danh &amp; phân quyền.</h3>
+      <p class="sub-lede">Thực thể trung tâm <code class="k">User</code> đại diện cho mọi người dùng, phân biệt vai trò qua <code class="k">userType</code> và mức quyền qua <code class="k">roleLevel</code>. Hồ sơ mở rộng nằm trong <code class="k">HoSoCaNhan</code> theo quan hệ một-một.</p>
+      <figure>
+        <div class="diagram" data-puml="class-user"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.1</strong>User Domain — User và HoSoCaNhan</figcaption>
+      </figure>
+      <div class="tbl-wrap">
+        <table class="refined">
+          <thead><tr><th>Thuộc tính</th><th>Kiểu</th><th>Ý nghĩa</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono-cell">userType</span></td><td>enum</td><td>Bốn vai trò: học sinh, sinh viên, giáo viên, quản trị viên</td></tr>
+            <tr><td><span class="mono-cell">roleLevel</span></td><td>int</td><td>Cấp độ trong vai trò — phân quyền chi tiết hơn</td></tr>
+            <tr><td><span class="mono-cell">status</span></td><td>enum</td><td>Pending → Active sau xác thực; Banned nếu vi phạm</td></tr>
+            <tr><td><span class="mono-cell">giayToChungMinh</span></td><td>String</td><td>URL ảnh xác thực giáo viên / quản trị viên</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="sub-tag">§ 4.2 — Social</span>
+      <h3 class="sub">Nội dung &amp; quan hệ xã hội.</h3>
+      <p class="sub-lede">Sáu thực thể tạo thành mạng tương tác giữa người dùng: bài đăng là aggregate root, bình luận và lượt chia sẻ là composition con của bài đăng, lượt thích là quan hệ many-to-many.</p>
+      <figure>
+        <div class="diagram" data-puml="class-social"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.2</strong>Social Domain — sáu thực thể tương tác</figcaption>
+      </figure>
+      <div class="tbl-wrap">
+        <table class="refined">
+          <thead><tr><th>Entity</th><th>Vai trò</th><th>Quy tắc</th></tr></thead>
+          <tbody>
+            <tr><td><b>BaiDang</b></td><td>Aggregate root cho một bài viết</td><td>Xoá bài cascade xoá comment, like, share</td></tr>
+            <tr><td><b>LuotThich</b></td><td>PK ghép (userId, baiDangId)</td><td>Một người chỉ like một lần</td></tr>
+            <tr><td><b>BanCungTien</b></td><td>Kết bạn hai chiều</td><td>UNIQUE(userId, friendUserId); không tự kết bạn với mình</td></tr>
+            <tr><td><b>Hashtag</b></td><td>Tag phân loại nội dung</td><td>UNIQUE tên, lowercase</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <span class="sub-tag">§ 4.3 — Messaging</span>
+      <h3 class="sub">Trò chuyện &amp; thông báo.</h3>
+      <p class="sub-lede">Hỗ trợ cuộc trò chuyện một-một và nhóm. <code class="k">CuocTroChuyenThanhVien</code> là bảng nối many-to-many. Thông báo cá nhân được phát qua EventBus.</p>
+      <figure>
+        <div class="diagram" data-puml="class-messaging"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.3</strong>Messaging Domain — cuộc trò chuyện, tin nhắn, thông báo</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 4.4 — Learning</span>
+      <h3 class="sub">Tài liệu &amp; sự kiện.</h3>
+      <p class="sub-lede">Người dùng đóng góp tài liệu (URL lưu external, DB chỉ giữ tham chiếu). Sự kiện cộng đồng có cơ chế duyệt thành viên qua <code class="k">ApprovalStatus</code>.</p>
+      <figure>
+        <div class="diagram" data-puml="class-learning"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.4</strong>Learning Domain — tài liệu và sự kiện</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 4.5 — Quiz &amp; Exam</span>
+      <h3 class="sub">Bộ đề &amp; luyện tập.</h3>
+      <p class="sub-lede">Hệ thống đề trắc nghiệm chia theo bộ đề. Mỗi câu hỏi có bốn lựa chọn A/B/C/D và đúng một đáp án. Phiên luyện tập lưu điểm số để theo dõi tiến độ học viên.</p>
+      <figure>
+        <div class="diagram" data-puml="class-quiz"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.5</strong>Quiz &amp; Exam Domain — bộ đề và phiên luyện tập</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 4.6 — Competition</span>
+      <h3 class="sub">Thi đấu PvP.</h3>
+      <p class="sub-lede">Phòng thách đấu ghép cặp người chơi. Mỗi trận đấu vận hành như một state machine (cho → đang đấu → kết thúc). Kết quả tự động cập nhật hạng thơ.</p>
+      <figure>
+        <div class="diagram" data-puml="class-compete"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.6</strong>Competition Domain — năm thực thể thi đấu</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 4.7 — Moderation</span>
+      <h3 class="sub">Kiểm duyệt &amp; báo cáo.</h3>
+      <p class="sub-lede">Báo cáo vi phạm có thể nhắm tới bài đăng hoặc người dùng. Quản trị viên tạo báo cáo thống kê hệ thống định kỳ.</p>
+      <figure>
+        <div class="diagram" data-puml="class-moderate"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 4.7</strong>Moderation Domain — báo cáo và xử lý</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 05 USE CASE ===== -->
+    <section id="usecase" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương V</div>
+        <div>
+          <div class="label mb-5">Use Cases</div>
+          <h2 class="chapter-title">Bốn vai trò, từng <em>quyền hạn</em>.</h2>
+          <p class="chapter-lede">Use Case Diagram trình bày các tương tác giữa bốn actor (HS, SV, GV, QTV) và các chức năng nghiệp vụ của hệ thống.</p>
+        </div>
+      </div>
+      <figure>
+        <div class="diagram" data-puml="usecase"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 5.1</strong>Use Case Diagram — bốn actor và mười lăm use case chính</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 06 STATE ===== -->
+    <section id="states" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương VI</div>
+        <div>
+          <div class="label mb-5">State Machines</div>
+          <h2 class="chapter-title">Vòng đời các <em>thực thể</em>.</h2>
+          <p class="chapter-lede">Ba thực thể có vòng đời phức tạp được mô hình hoá bằng state machine nhằm đảm bảo chuyển trạng thái hợp lệ và rõ ràng.</p>
+        </div>
+      </div>
+
+      <span class="sub-tag">§ 6.1 — TranDau</span>
+      <h3 class="sub">Trận đấu PvP.</h3>
+      <figure>
+        <div class="diagram" data-puml="state-match"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 6.1</strong>State diagram cho TranDau</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 6.2 — BaoCaoViPham</span>
+      <h3 class="sub">Báo cáo vi phạm.</h3>
+      <figure>
+        <div class="diagram" data-puml="state-report"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 6.2</strong>State diagram cho BaoCaoViPham</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 6.3 — BanCungTien</span>
+      <h3 class="sub">Quan hệ kết bạn.</h3>
+      <figure>
+        <div class="diagram" data-puml="state-friend"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 6.3</strong>State diagram cho BanCungTien</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 07 SEQUENCE ===== -->
+    <section id="sequences" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương VII</div>
+        <div>
+          <div class="label mb-5">Sequence</div>
+          <h2 class="chapter-title">Ba luồng <em>nghiệp vụ chính</em>.</h2>
+          <p class="chapter-lede">Trình bày tương tác giữa actor, controller, service và cơ sở dữ liệu trong các luồng nghiệp vụ tiêu biểu.</p>
+        </div>
+      </div>
+
+      <span class="sub-tag">§ 7.1</span>
+      <h3 class="sub">Đăng bài &amp; bình luận.</h3>
+      <figure>
+        <div class="diagram" data-puml="seq-post"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 7.1</strong>Sequence diagram cho luồng đăng bài và bình luận</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 7.2</span>
+      <h3 class="sub">Thách đấu PvP.</h3>
+      <figure>
+        <div class="diagram" data-puml="seq-pvp"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 7.2</strong>Sequence diagram cho luồng thách đấu</figcaption>
+      </figure>
+
+      <span class="sub-tag">§ 7.3</span>
+      <h3 class="sub">Báo cáo vi phạm.</h3>
+      <figure>
+        <div class="diagram" data-puml="seq-report"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 7.3</strong>Sequence diagram cho luồng báo cáo và xử lý</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 08 DEPLOYMENT ===== -->
+    <section id="deployment" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương VIII</div>
+        <div>
+          <div class="label mb-5">Deployment</div>
+          <h2 class="chapter-title">Triển khai <em>vật lý</em>.</h2>
+          <p class="chapter-lede">Hạ tầng từ thiết bị người dùng đến máy chủ ứng dụng, máy chủ cơ sở dữ liệu và các dịch vụ ngoài (email, CDN).</p>
+        </div>
+      </div>
+      <figure>
+        <div class="diagram" data-puml="deployment"><div class="diagram-loading">Đang tải sơ đồ…</div></div>
+        <figcaption><strong>Hình 8.1</strong>Deployment Diagram — kiến trúc hạ tầng</figcaption>
+      </figure>
+    </section>
+
+    <!-- ===== 09 CRUD ===== -->
+    <section id="crud" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương IX</div>
+        <div>
+          <div class="label mb-5">Phân quyền</div>
+          <h2 class="chapter-title"><em>CRUD</em> Matrix.</h2>
+          <p class="chapter-lede">Ma trận quyền Create / Read / Update / Delete theo từng vai trò người dùng. Quy tắc này được áp đặt tại lớp Auth + RBAC trước khi gọi domain service.</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px] text-ink-3">
+        <span class="inline-flex items-center gap-2"><span class="crud crud-c">C</span> Create</span>
+        <span class="inline-flex items-center gap-2"><span class="crud crud-r">R</span> Read</span>
+        <span class="inline-flex items-center gap-2"><span class="crud crud-u">U</span> Update</span>
+        <span class="inline-flex items-center gap-2"><span class="crud crud-d">D</span> Delete</span>
+        <span class="text-ink-5">— không có quyền</span>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="refined">
+          <thead><tr><th>Entity</th><th>Học sinh</th><th>Sinh viên</th><th>Giáo viên</th><th>Quản trị viên</th></tr></thead>
+          <tbody>
+            <tr><td><b>BaiDang</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>BinhLuan / LuotThich</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>TaiLieu</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>BoDe / CauHoi</b></td><td><span class="crud crud-r">R</span></td><td><span class="crud crud-r">R</span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>SuKien</b></td><td><span class="crud crud-r">R</span></td><td><span class="crud crud-r">R</span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>ThanhVienSuKien</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud-note">đăng ký</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud-note">đăng ký</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud-note">duyệt</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>PhongThachDau / TranDau</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span></span></td><td><span class="crud crud-r">R</span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>BaoCaoViPham</b></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud-note">duyệt</span></span></td></tr>
+            <tr><td><b>BaoCaoThongKe</b></td><td><span class="crud-x">—</span></td><td><span class="crud-x">—</span></td><td><span class="crud-x">—</span></td><td><span class="crud-cell"><span class="crud crud-c">C</span><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud crud-d">D</span></span></td></tr>
+            <tr><td><b>Users (admin)</b></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud-note">own</span></span></td><td><span class="crud-cell"><span class="crud crud-r">R</span><span class="crud crud-u">U</span><span class="crud-note">ban</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== 10 PATTERNS ===== -->
+    <section id="patterns" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương X</div>
+        <div>
+          <div class="label mb-5">Patterns</div>
+          <h2 class="chapter-title">Mẫu <em>thiết kế</em> áp dụng.</h2>
+          <p class="chapter-lede">Hệ thống vận dụng sáu pattern phổ biến trong OOP và kiến trúc ứng dụng web nhằm đảm bảo tính linh hoạt, dễ mở rộng và dễ bảo trì.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="row"><div class="row-num">I</div><div class="row-body"><h3 class="row-title">Repository</h3><p class="row-desc">Mỗi entity có một DAO riêng. Tách logic truy vấn cơ sở dữ liệu khỏi business logic.</p></div><div class="row-tag">Creational</div></div>
+        <div class="row"><div class="row-num">II</div><div class="row-body"><h3 class="row-title">Observer</h3><p class="row-desc">EventBus phát sự kiện (PostCreated, MatchEnded). MessagingService subscribe để sinh ThongBao.</p></div><div class="row-tag">Behavioral</div></div>
+        <div class="row"><div class="row-num">III</div><div class="row-body"><h3 class="row-title">State Machine</h3><p class="row-desc">TranDau, BaoCaoViPham, BanCungTien quản lý vòng đời qua state rõ ràng.</p></div><div class="row-tag">Behavioral</div></div>
+        <div class="row"><div class="row-num">IV</div><div class="row-body"><h3 class="row-title">Composite</h3><p class="row-desc">CuocTroChuyen chứa nhiều TinNhan và thành viên — xử lý như một aggregate.</p></div><div class="row-tag">Structural</div></div>
+        <div class="row"><div class="row-num">V</div><div class="row-body"><h3 class="row-title">Strategy + RBAC</h3><p class="row-desc">Phân quyền theo UserType × roleLevel; mỗi role có một strategy uỷ quyền riêng.</p></div><div class="row-tag">Behavioral</div></div>
+        <div class="row"><div class="row-num">VI</div><div class="row-body"><h3 class="row-title">Factory Method</h3><p class="row-desc">UserFactory tạo User đúng kiểu từ userType — đa hình theo vai trò.</p></div><div class="row-tag">Creational</div></div>
+      </div>
+    </section>
+
+    <!-- ===== 11 RULES ===== -->
+    <section id="rules" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương XI</div>
+        <div>
+          <div class="label mb-5">Rules</div>
+          <h2 class="chapter-title">Quy tắc <em>nghiệp vụ</em>.</h2>
+          <p class="chapter-lede">Mười lăm quy tắc nghiệp vụ then chốt mà SQL constraint không biểu diễn được hoàn toàn — cần code hoặc trigger đảm bảo ở lớp ứng dụng.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="rule-row"><div class="rule-id">R-01</div><div><div class="rule-title">Không tự kết bạn với chính mình</div><div class="rule-detail"><code class="k">BanCungTien.userId ≠ friendUserId</code></div></div></div>
+        <div class="rule-row"><div class="rule-id">R-02</div><div><div class="rule-title">Không kết bạn hai lần</div><div class="rule-detail">UNIQUE(userId, friendUserId)</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-03</div><div><div class="rule-title">Like một lần trên mỗi bài</div><div class="rule-detail">Composite PK trong <code class="k">luot_thich</code></div></div></div>
+        <div class="rule-row"><div class="rule-id">R-04</div><div><div class="rule-title">Chỉ Active mới đăng nhập được</div><div class="rule-detail">Pending cần xác thực email; Banned bị từ chối</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-05</div><div><div class="rule-title">Chỉ GV/QTV tạo BoDe và CauHoi</div><div class="rule-detail">Kiểm tra role trước khi insert</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-06</div><div><div class="rule-title">Chỉ QTV tạo BaoCaoThongKe</div><div class="rule-detail">FK <code class="k">quan_tri_user_id</code> phải có role <code class="k">quan_tri_vien</code></div></div></div>
+        <div class="rule-row"><div class="rule-id">R-07</div><div><div class="rule-title">TranDau cần hai người chơi khác nhau</div><div class="rule-detail">nguoi_choi_1_id ≠ nguoi_choi_2_id</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-08</div><div><div class="rule-title">State transition hợp lệ</div><div class="rule-detail">cho → dang_dau → ket_thuc, không nhảy bước</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-09</div><div><div class="rule-title">ThanhVienSuKien phải duyệt</div><div class="rule-detail">Chỉ Approved mới chính thức tham gia</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-10</div><div><div class="rule-title">Không tự báo cáo chính mình</div><div class="rule-detail">nguoiBaoCaoId ≠ nguoiBiBaoCaoId</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-11</div><div><div class="rule-title">TinNhan phải thuộc cuộc trò chuyện</div><div class="rule-detail">Sender phải là thành viên của <code class="k">cuoc_tro_chuyen</code></div></div></div>
+        <div class="rule-row"><div class="rule-id">R-12</div><div><div class="rule-title">HoSoCaNhan là quan hệ một-một</div><div class="rule-detail">UNIQUE(user_id), tạo tự động khi đăng ký</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-13</div><div><div class="rule-title">Cascade delete user</div><div class="rule-detail">Xoá user → cascade xoá nội dung liên quan</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-14</div><div><div class="rule-title">Hashtag duy nhất và lowercase</div><div class="rule-detail">Chuẩn hoá trước khi lưu</div></div></div>
+        <div class="rule-row"><div class="rule-id">R-15</div><div><div class="rule-title">Notification phát qua EventBus</div><div class="rule-detail">Không hardcode trong controller; phát event, service xử lý</div></div></div>
+      </div>
+    </section>
+
+    <!-- ===== 12 GLOSSARY ===== -->
+    <section id="glossary" class="chapter">
+      <div class="chapter-head">
+        <div class="chapter-num">Chương XII</div>
+        <div>
+          <div class="label mb-5">Glossary</div>
+          <h2 class="chapter-title">Đối chiếu <em>SQL ↔ OOP</em>.</h2>
+          <p class="chapter-lede">Bảng đối chiếu tên thực thể trong cơ sở dữ liệu, tên lớp trong mô hình OOP và tên tiếng Anh tương ứng.</p>
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="refined">
+          <thead><tr><th>SQL Table</th><th>OOP Class</th><th>English</th><th>Mô tả</th></tr></thead>
+          <tbody>
+            <tr><td><span class="mono-cell">users</span></td><td><b>User</b></td><td>User</td><td>Người dùng hệ thống</td></tr>
+            <tr><td><span class="mono-cell">ho_so_ca_nhan</span></td><td><b>HoSoCaNhan</b></td><td>Profile</td><td>Hồ sơ cá nhân mở rộng</td></tr>
+            <tr><td><span class="mono-cell">bai_dang</span></td><td><b>BaiDang</b></td><td>Post</td><td>Bài đăng trên feed</td></tr>
+            <tr><td><span class="mono-cell">binh_luan</span></td><td><b>BinhLuan</b></td><td>Comment</td><td>Bình luận</td></tr>
+            <tr><td><span class="mono-cell">luot_thich</span></td><td><b>LuotThich</b></td><td>Like</td><td>Lượt thích</td></tr>
+            <tr><td><span class="mono-cell">luot_chia_se</span></td><td><b>LuotChiaSe</b></td><td>Share</td><td>Lượt chia sẻ</td></tr>
+            <tr><td><span class="mono-cell">hashtag</span></td><td><b>Hashtag</b></td><td>Hashtag</td><td>Tag nội dung</td></tr>
+            <tr><td><span class="mono-cell">ban_cung_tien</span></td><td><b>BanCungTien</b></td><td>Friendship</td><td>Quan hệ kết bạn</td></tr>
+            <tr><td><span class="mono-cell">cuoc_tro_chuyen</span></td><td><b>CuocTroChuyen</b></td><td>Conversation</td><td>Cuộc trò chuyện</td></tr>
+            <tr><td><span class="mono-cell">cuoc_tro_chuyen_thanh_vien</span></td><td><b>CuocTroChuyenThanhVien</b></td><td>ConversationMember</td><td>Thành viên cuộc chat</td></tr>
+            <tr><td><span class="mono-cell">tin_nhan</span></td><td><b>TinNhan</b></td><td>Message</td><td>Tin nhắn</td></tr>
+            <tr><td><span class="mono-cell">thong_bao</span></td><td><b>ThongBao</b></td><td>Notification</td><td>Thông báo</td></tr>
+            <tr><td><span class="mono-cell">tai_lieu</span></td><td><b>TaiLieu</b></td><td>Document</td><td>Tài liệu học tập</td></tr>
+            <tr><td><span class="mono-cell">su_kien</span></td><td><b>SuKien</b></td><td>Event</td><td>Sự kiện</td></tr>
+            <tr><td><span class="mono-cell">thanh_vien_su_kien</span></td><td><b>ThanhVienSuKien</b></td><td>EventMember</td><td>Thành viên sự kiện</td></tr>
+            <tr><td><span class="mono-cell">bo_de</span></td><td><b>BoDe</b></td><td>QuestionBank</td><td>Bộ đề</td></tr>
+            <tr><td><span class="mono-cell">cau_hoi</span></td><td><b>CauHoi</b></td><td>Question</td><td>Câu hỏi</td></tr>
+            <tr><td><span class="mono-cell">phien_luyen_tap</span></td><td><b>PhienLuyenTap</b></td><td>PracticeSession</td><td>Phiên luyện tập</td></tr>
+            <tr><td><span class="mono-cell">hang_tho</span></td><td><b>HangTho</b></td><td>Rank</td><td>Hạng đấu</td></tr>
+            <tr><td><span class="mono-cell">user_hang_tho</span></td><td><b>UserHangTho</b></td><td>UserRank</td><td>Lịch sử rank</td></tr>
+            <tr><td><span class="mono-cell">phong_thach_dau</span></td><td><b>PhongThachDau</b></td><td>ChallengeRoom</td><td>Phòng thách đấu</td></tr>
+            <tr><td><span class="mono-cell">user_phong_thach_dau</span></td><td><b>UserPhongThachDau</b></td><td>RoomMember</td><td>Thành viên phòng</td></tr>
+            <tr><td><span class="mono-cell">tran_dau</span></td><td><b>TranDau</b></td><td>Match</td><td>Trận đấu PvP</td></tr>
+            <tr><td><span class="mono-cell">bao_cao_vi_pham</span></td><td><b>BaoCaoViPham</b></td><td>ViolationReport</td><td>Báo cáo vi phạm</td></tr>
+            <tr><td><span class="mono-cell">bao_cao_thong_ke</span></td><td><b>BaoCaoThongKe</b></td><td>StatisticsReport</td><td>Báo cáo thống kê</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ====== FOOTER ====== -->
+<footer class="border-t border-line vignette">
+  <div class="max-w-[1200px] mx-auto px-6 lg:px-10 py-20 sm:py-24">
+    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-12 items-end">
+      <div>
+        <div class="label mb-8">Cuối báo cáo</div>
+        <h2 class="text-[clamp(3rem,8vw,6rem)] leading-[0.95] tracking-[-0.04em] font-bold text-ink mb-6">
+          Fin<span class="text-accent">.</span>
+        </h2>
+        <p class="text-ink-3 max-w-[28rem] text-[14.5px] leading-[1.6]">Báo cáo phân tích thiết kế hướng đối tượng. Trình bày bởi Nhóm 10 — Đồ án Cơ sở dữ liệu năm học 2026.</p>
+      </div>
+      <dl class="grid grid-cols-2 gap-x-10 gap-y-5 text-[12.5px]">
+        <div><dt class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-1.5">Phát hành</dt><dd class="text-ink-2 font-medium">28 · 05 · 2026</dd></div>
+        <div><dt class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-1.5">Phiên bản</dt><dd class="text-ink-2 font-medium">v1.0 · Final</dd></div>
+        <div><dt class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-1.5">UML</dt><dd class="text-ink-2 font-medium">PlantUML 2.5</dd></div>
+        <div><dt class="text-[10.5px] font-semibold uppercase tracking-[0.2em] text-ink-4 mb-1.5">License</dt><dd class="text-ink-2 font-medium">MIT</dd></div>
+      </dl>
+    </div>
+    <div class="mt-16 pt-6 border-t border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-[12px] text-ink-4">
+      <div>© MMXXVI · Nhóm 10 · Đồ án Cơ sở dữ liệu</div>
+      <a href="#top" class="hover:text-ink transition-colors inline-flex items-center gap-2">
+        Trở lại đầu trang
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</footer>
+
+<!-- ====== PlantUML ====== -->
+<script>
+const PUML_THEME = `
+skinparam backgroundColor transparent
+skinparam DefaultFontName "Inter, Helvetica Neue, Arial, sans-serif"
+skinparam DefaultFontSize 12
+skinparam DefaultFontColor #1d1c1a
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam nodesep 50
+skinparam ranksep 58
+skinparam padding 4
+skinparam linetype polyline
+
+skinparam ArrowColor #8a8378
+skinparam ArrowThickness 1.1
+skinparam ArrowFontColor #5a534a
+skinparam ArrowFontSize 11
+skinparam ArrowFontStyle plain
+
+skinparam NoteBackgroundColor #f0dcc8
+skinparam NoteBorderColor #983618
+skinparam NoteFontColor #6e2811
+skinparam NoteFontSize 11
+
+skinparam ClassBackgroundColor #faf5e9
+skinparam ClassBorderColor #5a534a
+skinparam ClassBorderThickness 1
+skinparam ClassFontSize 13
+skinparam ClassFontColor #1d1c1a
+skinparam ClassFontStyle bold
+skinparam ClassAttributeFontSize 12
+skinparam ClassAttributeFontColor #5a534a
+skinparam ClassAttributeIconSize 0
+skinparam ClassStereotypeFontColor #983618
+skinparam ClassStereotypeFontSize 10
+skinparam ClassHeaderBackgroundColor #ebe2cd
+
+skinparam EnumBackgroundColor #f0dcc8
+skinparam EnumBorderColor #983618
+skinparam EnumFontColor #6e2811
+skinparam EnumStereotypeFontColor #6e2811
+
+skinparam InterfaceBackgroundColor #ebe2cd
+skinparam InterfaceBorderColor #5a534a
+
+skinparam PackageBackgroundColor transparent
+skinparam PackageBorderColor #b0a695
+skinparam PackageBorderThickness 1
+skinparam PackageFontSize 12
+skinparam PackageFontColor #5a534a
+skinparam PackageFontStyle bold
+skinparam PackageStyle rectangle
+
+skinparam ActorStyle awesome
+skinparam ActorBackgroundColor #faf5e9
+skinparam ActorBorderColor #1d1c1a
+skinparam ActorBorderThickness 1.2
+skinparam ActorFontColor #1d1c1a
+skinparam ActorFontStyle bold
+
+skinparam UsecaseBackgroundColor #faf5e9
+skinparam UsecaseBorderColor #5a534a
+skinparam UsecaseBorderThickness 1
+skinparam UsecaseFontColor #1d1c1a
+skinparam UsecaseFontSize 12
+
+skinparam RectangleBackgroundColor transparent
+skinparam RectangleBorderColor #b0a695
+skinparam RectangleFontColor #5a534a
+skinparam RectangleFontStyle bold
+skinparam ComponentBackgroundColor #faf5e9
+skinparam ComponentBorderColor #5a534a
+skinparam ComponentFontColor #1d1c1a
+skinparam ComponentFontStyle bold
+
+skinparam StateBackgroundColor #faf5e9
+skinparam StateBorderColor #5a534a
+skinparam StateBorderThickness 1.2
+skinparam StateFontColor #1d1c1a
+skinparam StateFontStyle bold
+skinparam StateAttributeFontColor #5a534a
+skinparam StateStartColor #1d1c1a
+skinparam StateEndColor #1d1c1a
+
+skinparam SequenceMessageAlign center
+skinparam SequenceArrowColor #5a534a
+skinparam SequenceArrowThickness 1.2
+skinparam SequenceArrowFontColor #1d1c1a
+skinparam SequenceLifeLineBorderColor #d6cdb8
+skinparam SequenceLifeLineBackgroundColor #ebe2cd
+skinparam SequenceGroupBodyBackgroundColor #faf5e9
+skinparam SequenceGroupBorderColor #b0a695
+skinparam SequenceGroupFontColor #1d1c1a
+skinparam SequenceGroupFontStyle bold
+skinparam SequenceDividerBackgroundColor #ebe2cd
+skinparam SequenceDividerBorderColor #b0a695
+skinparam SequenceDividerFontColor #1d1c1a
+skinparam SequenceDividerFontStyle bold
+skinparam ParticipantBackgroundColor #faf5e9
+skinparam ParticipantBorderColor #5a534a
+skinparam ParticipantFontColor #1d1c1a
+skinparam ParticipantFontStyle bold
+
+skinparam DatabaseBackgroundColor #f0dcc8
+skinparam DatabaseBorderColor #983618
+skinparam DatabaseFontColor #6e2811
+skinparam DatabaseFontStyle bold
+skinparam StorageBackgroundColor #ebe2cd
+skinparam StorageBorderColor #8a8378
+skinparam StorageFontColor #1d1c1a
+skinparam CloudBackgroundColor #ebe2cd
+skinparam CloudBorderColor #8a8378
+skinparam CloudFontColor #5a534a
+skinparam NodeBackgroundColor #faf5e9
+skinparam NodeBorderColor #5a534a
+skinparam NodeFontColor #1d1c1a
+skinparam NodeFontStyle bold
+skinparam ArtifactBackgroundColor #faf5e9
+skinparam ArtifactBorderColor #8a8378
+skinparam ArtifactFontColor #1d1c1a
+`;
+
+const PUMLS = {
+  'component': `@startuml
+${PUML_THEME}
+actor "User" as user
+package "Presentation Layer" {
+  [Web UI] as Web
+  [Mobile App] as Mob
+}
+package "Business Layer" {
+  interface "REST API" as API
+  component "Auth + RBAC" as Auth
+  package "Domain Services" {
+    [UserService]
+    [SocialService]
+    [MessagingService]
+    [LearningService]
+    [QuizService]
+    [CompetitionService]
+    [ModerationService]
+  }
+  component "EventBus" as EB
+}
+database "MariaDB" as DB
+storage "File Storage" as FS
+user --> Web
+user --> Mob
+Web --> API
+Mob --> API
+API --> Auth
+Auth --> [UserService]
+Auth --> [SocialService]
+Auth --> [MessagingService]
+Auth --> [LearningService]
+Auth --> [QuizService]
+Auth --> [CompetitionService]
+Auth --> [ModerationService]
+[SocialService] ..> EB
+[CompetitionService] ..> EB
+EB ..> [MessagingService]
+[UserService] --> DB
+[SocialService] --> DB
+[MessagingService] --> DB
+[LearningService] --> DB
+[LearningService] --> FS
+[QuizService] --> DB
+[CompetitionService] --> DB
+[ModerationService] --> DB
+@enduml`,
+  'class-full': `@startuml
+${PUML_THEME}
+enum UserType { hoc_sinh\nsinh_vien\ngiao_vien\nquan_tri_vien }
+enum UserStatus { Active\nBanned\nPending }
+enum FriendStatus { Pending\nAccepted\nBlocked }
+enum ReportStatus { Pending\nReviewed\nRejected\nResolved }
+enum ApprovalStatus { Pending\nApproved\nRejected }
+enum MatchStatus { cho\ndang_dau\nket_thuc }
+enum AnswerChoice { A\nB\nC\nD }
+class User { +id : int\n+username : String\n+email : String\n+status : UserStatus\n+userType : UserType\n+roleLevel : int }
+class HoSoCaNhan { +id : int\n+userId : int\n+thongTinDinhDanh : text }
+class BaiDang { +id : int\n+userId : int\n+noiDung : text }
+class BinhLuan { +id : int\n+baiDangId : int\n+userId : int }
+class LuotThich { +userId : int\n+baiDangId : int }
+class LuotChiaSe { +id : int\n+userId : int\n+baiDangId : int }
+class Hashtag { +id : int\n+tenHashtag : String }
+class BanCungTien { +id : int\n+userId : int\n+friendUserId : int\n+status : FriendStatus }
+class CuocTroChuyen { +id : int }
+class CuocTroChuyenThanhVien { +cuocTroChuyenId : int\n+userId : int }
+class TinNhan { +id : int\n+cuocTroChuyenId : int\n+senderUserId : int }
+class ThongBao { +id : int\n+userId : int\n+isRead : boolean }
+class TaiLieu { +id : int\n+userId : int\n+fileUrl : String }
+class SuKien { +id : int\n+tieuDe : String }
+class ThanhVienSuKien { +id : int\n+suKienId : int\n+userId : int\n+trangThaiDuyet : ApprovalStatus }
+class BoDe { +id : int }
+class CauHoi { +id : int\n+boDeId : int\n+dapAnDung : AnswerChoice }
+class PhienLuyenTap { +id : int\n+userId : int\n+diemSo : int }
+class HangTho { +id : int }
+class UserHangTho { +userId : int\n+hangThoId : int }
+class PhongThachDau { +id : int\n+boDeId : int }
+class UserPhongThachDau { +userId : int\n+phongThachDauId : int }
+class TranDau { +id : int\n+phongThachDauId : int\n+nguoiChoi1Id : int\n+nguoiChoi2Id : int\n+trangThai : MatchStatus }
+class BaoCaoViPham { +id : int\n+nguoiBaoCaoId : int\n+trangThai : ReportStatus }
+class BaoCaoThongKe { +id : int\n+quanTriUserId : int }
+User "1" *-- "0..1" HoSoCaNhan
+User "1" --o "0..*" BaiDang
+BaiDang "1" *-- "0..*" BinhLuan
+BaiDang "1" -- "0..*" LuotThich
+BaiDang "1" *-- "0..*" LuotChiaSe
+User "1" --o "0..*" BanCungTien
+CuocTroChuyen "1" *-- "0..*" CuocTroChuyenThanhVien
+CuocTroChuyen "1" *-- "0..*" TinNhan
+User "1" --o "0..*" ThongBao
+User "1" --o "0..*" TaiLieu
+SuKien "1" *-- "0..*" ThanhVienSuKien
+BoDe "1" *-- "0..*" CauHoi
+User "1" --o "0..*" PhienLuyenTap
+BoDe "1" -- "0..*" PhongThachDau
+PhongThachDau "1" *-- "0..*" TranDau
+PhongThachDau "1" *-- "0..*" UserPhongThachDau
+HangTho "1" -- "0..*" UserHangTho
+User "1" --o "0..*" BaoCaoViPham
+User "1" --o "0..*" BaoCaoThongKe
+@enduml`,
+  'class-user': `@startuml
+${PUML_THEME}
+enum UserType { hoc_sinh\nsinh_vien\ngiao_vien\nquan_tri_vien }
+enum UserStatus { Active\nBanned\nPending }
+class User { +id : int\n+username : String\n+email : String\n+passwordHash : String\n+status : UserStatus\n+isOnline : boolean\n+userType : UserType\n+truongHoc : String\n+truongDaiHoc : String\n+giayToChungMinh : String\n+roleLevel : int\n+createdAt : DateTime }
+class HoSoCaNhan { +id : int\n+userId : int\n+thongTinDinhDanh : text\n+createdAt : DateTime }
+User "1" *-- "0..1" HoSoCaNhan
+User ..> UserType
+User ..> UserStatus
+@enduml`,
+  'class-social': `@startuml
+${PUML_THEME}
+enum FriendStatus { Pending\nAccepted\nBlocked }
+class BaiDang { +id : int\n+userId : int\n+noiDung : text\n+createdAt : DateTime }
+class BinhLuan { +id : int\n+baiDangId : int\n+userId : int\n+noiDung : text }
+class LuotThich { +userId : int\n+baiDangId : int }
+class LuotChiaSe { +id : int\n+userId : int\n+baiDangId : int }
+class Hashtag { +id : int\n+tenHashtag : String }
+class BanCungTien { +id : int\n+userId : int\n+friendUserId : int\n+status : FriendStatus }
+BaiDang "1" *-- "0..*" BinhLuan
+BaiDang "1" *-- "0..*" LuotChiaSe
+BaiDang "1" -- "0..*" LuotThich
+BanCungTien ..> FriendStatus
+@enduml`,
+  'class-messaging': `@startuml
+${PUML_THEME}
+class CuocTroChuyen { +id : int\n+createdAt : DateTime }
+class CuocTroChuyenThanhVien { +cuocTroChuyenId : int\n+userId : int }
+class TinNhan { +id : int\n+cuocTroChuyenId : int\n+senderUserId : int\n+noiDung : text\n+thoiGian : DateTime }
+class ThongBao { +id : int\n+userId : int\n+noiDung : text\n+isRead : boolean }
+CuocTroChuyen "1" *-- "0..*" CuocTroChuyenThanhVien
+CuocTroChuyen "1" *-- "0..*" TinNhan
+@enduml`,
+  'class-learning': `@startuml
+${PUML_THEME}
+enum ApprovalStatus { Pending\nApproved\nRejected }
+class TaiLieu { +id : int\n+userId : int\n+tenTaiLieu : String\n+fileUrl : String }
+class SuKien { +id : int\n+tieuDe : String\n+thoiGian : DateTime }
+class ThanhVienSuKien { +id : int\n+suKienId : int\n+userId : int\n+trangThaiDuyet : ApprovalStatus }
+SuKien "1" *-- "0..*" ThanhVienSuKien
+ThanhVienSuKien ..> ApprovalStatus
+@enduml`,
+  'class-quiz': `@startuml
+${PUML_THEME}
+enum AnswerChoice { A\nB\nC\nD }
+class BoDe { +id : int\n+tenBoDe : String }
+class CauHoi { +id : int\n+boDeId : int\n+noiDung : text\n+luaChonA : String\n+luaChonB : String\n+luaChonC : String\n+luaChonD : String\n+dapAnDung : AnswerChoice }
+class PhienLuyenTap { +id : int\n+userId : int\n+diemSo : int }
+BoDe "1" *-- "0..*" CauHoi
+CauHoi ..> AnswerChoice
+@enduml`,
+  'class-compete': `@startuml
+${PUML_THEME}
+enum MatchStatus { cho\ndang_dau\nket_thuc }
+class PhongThachDau { +id : int\n+boDeId : int }
+class UserPhongThachDau { +userId : int\n+phongThachDauId : int }
+class TranDau { +id : int\n+phongThachDauId : int\n+nguoiChoi1Id : int\n+nguoiChoi2Id : int\n+diemNguoi1 : int\n+diemNguoi2 : int\n+trangThai : MatchStatus\n+startedAt : DateTime\n+endedAt : DateTime }
+class HangTho { +id : int\n+tenHangTho : String }
+class UserHangTho { +userId : int\n+hangThoId : int }
+PhongThachDau "1" *-- "0..*" TranDau
+PhongThachDau "1" *-- "0..*" UserPhongThachDau
+TranDau ..> MatchStatus
+@enduml`,
+  'class-moderate': `@startuml
+${PUML_THEME}
+enum ReportStatus { Pending\nReviewed\nRejected\nResolved }
+class BaoCaoViPham { +id : int\n+nguoiBaoCaoId : int\n+baiDangId : int\n+nguoiBiBaoCaoId : int\n+lyDo : text\n+trangThai : ReportStatus }
+class BaoCaoThongKe { +id : int\n+quanTriUserId : int\n+loaiBaoCao : String\n+noiDungBaoCao : text }
+BaoCaoViPham ..> ReportStatus
+@enduml`,
+  'usecase': `@startuml
+${PUML_THEME}
+left to right direction
+skinparam packageStyle rectangle
+actor "Học sinh" as HS
+actor "Sinh viên" as SV
+actor "Giáo viên" as GV
+actor "Quản trị viên" as QTV
+rectangle "TheBunny" {
+  usecase "Đăng ký / Đăng nhập" as UC1
+  usecase "Quản lý hồ sơ" as UC2
+  usecase "Đăng bài / Bình luận" as UC3
+  usecase "Kết bạn / Nhắn tin" as UC4
+  usecase "Upload tài liệu" as UC5
+  usecase "Tham gia sự kiện" as UC6
+  usecase "Luyện tập trắc nghiệm" as UC7
+  usecase "Thách đấu PvP" as UC8
+  usecase "Báo cáo vi phạm" as UC9
+  usecase "Tạo bộ đề / câu hỏi" as UC10
+  usecase "Tạo sự kiện" as UC11
+  usecase "Duyệt thành viên SK" as UC12
+  usecase "Duyệt báo cáo" as UC13
+  usecase "Quản lý người dùng" as UC14
+  usecase "Báo cáo thống kê" as UC15
+}
+HS --> UC1
+HS --> UC2
+HS --> UC3
+HS --> UC4
+HS --> UC5
+HS --> UC6
+HS --> UC7
+HS --> UC8
+HS --> UC9
+SV --> UC1
+SV --> UC3
+SV --> UC4
+SV --> UC5
+SV --> UC7
+SV --> UC8
+GV --> UC1
+GV --> UC10
+GV --> UC11
+GV --> UC12
+GV --> UC5
+QTV --> UC13
+QTV --> UC14
+QTV --> UC15
+QTV --> UC12
+@enduml`,
+  'state-match': `@startuml
+${PUML_THEME}
+[*] --> cho
+cho --> dang_dau : start()
+dang_dau --> ket_thuc : end()
+ket_thuc --> [*]
+@enduml`,
+  'state-report': `@startuml
+${PUML_THEME}
+[*] --> Pending
+Pending --> Reviewed : QTV xem
+Pending --> Rejected : QTV bác
+Reviewed --> Resolved : xác nhận
+Reviewed --> Rejected
+Resolved --> [*]
+Rejected --> [*]
+@enduml`,
+  'state-friend': `@startuml
+${PUML_THEME}
+[*] --> Pending : gửi lời mời
+Pending --> Accepted : đồng ý
+Pending --> [*] : từ chối
+Accepted --> Blocked : chặn
+Accepted --> [*] : huỷ
+Blocked --> [*]
+@enduml`,
+  'seq-post': `@startuml
+${PUML_THEME}
+autonumber
+actor "User A" as A
+actor "User B" as B
+participant "WebApp" as W
+participant "PostController" as PC
+participant "NotifyService" as TB
+database "MariaDB" as DB
+A -> W : viết nội dung
+W -> PC : POST /posts
+PC -> DB : INSERT bai_dang
+DB --> PC : id
+PC --> W : 201 Created
+== Bình luận ==
+B -> W : mở feed
+W -> PC : GET /posts
+PC -> DB : SELECT
+DB --> W : data
+B -> W : viết bình luận
+W -> PC : POST /posts/:id/comments
+PC -> DB : INSERT binh_luan
+PC -> TB : notify(A)
+TB -> DB : INSERT thong_bao
+TB --> A : push
+@enduml`,
+  'seq-pvp': `@startuml
+${PUML_THEME}
+autonumber
+actor "Player 1" as P1
+actor "Player 2" as P2
+participant "MatchService" as MS
+participant "RankService" as RS
+database "MariaDB" as DB
+P1 -> MS : createRoom(boDeId)
+MS -> DB : INSERT phong_thach_dau
+P2 -> MS : joinRoom(roomId)
+MS -> DB : INSERT user_phong_thach_dau
+== Bắt đầu ==
+MS -> DB : INSERT tran_dau (cho)
+MS -> DB : UPDATE dang_dau
+loop Mỗi câu hỏi
+  MS -> P1 : câu hỏi
+  MS -> P2 : câu hỏi
+  P1 --> MS : đáp án
+  P2 --> MS : đáp án
+  MS -> DB : UPDATE điểm
+end
+== Kết thúc ==
+MS -> DB : UPDATE ket_thuc
+MS -> RS : updateRank
+RS -> DB : UPDATE user_hang_tho
+@enduml`,
+  'seq-report': `@startuml
+${PUML_THEME}
+autonumber
+actor "User" as U
+actor "Admin" as QTV
+participant "ModerationController" as MC
+participant "NotifyService" as TB
+database "MariaDB" as DB
+U -> MC : POST /reports
+MC -> DB : INSERT (Pending)
+MC -> TB : notifyAdmins
+TB -> QTV : notification
+QTV -> MC : review(reportId)
+alt Vi phạm
+  MC -> DB : UPDATE Resolved
+  MC -> DB : UPDATE users.status = Banned
+  MC -> TB : notify banned user
+else Không vi phạm
+  MC -> DB : UPDATE Rejected
+end
+@enduml`,
+  'deployment': `@startuml
+${PUML_THEME}
+node "Client Devices" {
+  artifact "Browser" as B
+  artifact "Mobile / PWA" as M
+}
+cloud "Internet (HTTPS)" as Net
+node "Application Server" {
+  artifact "Apache / Nginx" as Web
+  artifact "PHP 8.0" as PHP
+}
+node "Database Server" {
+  database "MariaDB 10.4" as DB
+  artifact "phpMyAdmin" as PMA
+}
+node "Storage" {
+  artifact "File Storage" as FS
+}
+cloud "External" {
+  artifact "SMTP" as Email
+  artifact "CDN" as CDN
+}
+B <-> Net
+M <-> Net
+Net <-> Web
+Web -> PHP
+PHP <-> DB
+PHP <-> FS
+PHP --> Email
+PHP --> CDN
+PMA <-> DB
+@enduml`
+};
+</script>
+
+<script>
+const PLANTUML = 'https://www.plantuml.com/plantuml/svg/';
+const KROKI = 'https://kroki.io/plantuml/svg/';
+
+async function tryFetch(url) {
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return { error: 'HTTP ' + r.status };
+    const t = await r.text();
+    if (!t.includes('<svg')) return { error: 'not SVG' };
+    return { svg: t };
+  } catch (e) { return { error: e.message }; }
+}
+
+async function renderDiagram(box) {
+  const key = box.dataset.puml;
+  const src = PUMLS[key];
+  if (!src) { box.innerHTML = '<div class="diagram-error">Không tìm thấy mã PlantUML: ' + key + '</div>'; return; }
+  if (typeof plantumlEncoder === 'undefined') {
+    box.innerHTML = '<div class="diagram-error">plantuml-encoder chưa tải xong.</div>'; return;
+  }
+
+  const encoded = plantumlEncoder.encode(src);
+  const directUrl = PLANTUML + encoded;
+  const attempts = [PLANTUML + encoded, KROKI + encoded];
+
+  let svgText = null, lastError = null;
+  for (const url of attempts) {
+    const { svg, error } = await tryFetch(url);
+    if (svg) { svgText = svg; break; }
+    lastError = error;
+  }
+
+  if (!svgText) {
+    box.innerHTML = '<div class="diagram-error">Không tải được sơ đồ <code>' + key + '</code>: ' + (lastError || 'unknown') + '</div>';
+    return;
+  }
+
+  box.innerHTML = '';
+  if (directUrl) {
+    const a = document.createElement('a');
+    a.href = directUrl; a.target = '_blank'; a.rel = 'noopener';
+    a.className = 'no-print absolute top-3 right-3 inline-flex items-center gap-1.5 text-[11px] font-medium text-ink-4 hover:text-accent px-2.5 py-1.5 rounded border border-line hover:border-accent bg-paper-card transition-colors';
+    a.innerHTML = '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>SVG';
+    box.appendChild(a);
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = svgText;
+  const svg = wrapper.querySelector('svg');
+  if (svg) {
+    svg.removeAttribute('width'); svg.removeAttribute('height');
+    svg.style.maxWidth = '100%'; svg.style.height = 'auto';
+    box.appendChild(svg);
+  } else { box.insertAdjacentHTML('beforeend', svgText); }
+}
+
+function initDiagrams() {
+  const boxes = document.querySelectorAll('[data-puml]');
+  if (!('IntersectionObserver' in window)) { boxes.forEach(renderDiagram); return; }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { renderDiagram(e.target); observer.unobserve(e.target); } });
+  }, { rootMargin: '300px 0px' });
+  boxes.forEach(b => observer.observe(b));
+}
+
+function initScrollSpy() {
+  const sections = Array.from(document.querySelectorAll('section[id]'));
+  const tocLinks = Array.from(document.querySelectorAll('.toc-link'));
+  const progress = document.getElementById('progress');
+  function update() {
+    const st = window.scrollY;
+    const dh = document.documentElement.scrollHeight - window.innerHeight;
+    progress.style.setProperty('--p', (dh > 0 ? Math.min(100, (st / dh) * 100) : 0) + '%');
+    let current = sections[0]?.id;
+    for (const sec of sections) { if (sec.getBoundingClientRect().top <= 140) current = sec.id; }
+    tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  }
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) { requestAnimationFrame(() => { update(); ticking = false; }); ticking = true; }
+  }, { passive: true });
+  update();
+}
+
+function init() { initDiagrams(); initScrollSpy(); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>

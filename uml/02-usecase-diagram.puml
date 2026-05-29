@@ -1,0 +1,197 @@
+@startuml TheBunny_UseCase_Diagram
+
+!theme cerulean-outline
+
+' ===== Layout =====
+top to bottom direction
+skinparam nodesep 28
+skinparam ranksep 50
+skinparam padding 4
+skinparam shadowing false
+skinparam roundCorner 14
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+' ===== Actor =====
+skinparam ActorStyle awesome
+skinparam ActorBackgroundColor #ffffff
+skinparam ActorBorderColor #1e293b
+skinparam ActorBorderThickness 1.4
+skinparam ActorFontStyle bold
+skinparam ActorFontColor #0f172a
+
+' ===== Use case =====
+skinparam UsecaseBackgroundColor #ffffff
+skinparam UsecaseBorderColor #94a3b8
+skinparam UsecaseBorderThickness 1.1
+skinparam UsecaseFontSize 12
+skinparam UsecaseFontColor #0f172a
+skinparam UsecaseStereotypeFontColor #ea580c
+
+' ===== Package =====
+skinparam PackageBorderColor #94a3b8
+skinparam PackageBorderThickness 1
+skinparam PackageFontSize 13
+skinparam PackageFontStyle bold
+skinparam PackageStyle rectangle
+
+' ===== Arrows =====
+skinparam ArrowColor #94a3b8
+skinparam ArrowThickness 1.1
+skinparam ArrowFontColor #64748b
+skinparam ArrowFontSize 10
+skinparam ArrowFontStyle italic
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 11
+
+title TheBunny — Use Case Diagram\nBốn vai trò người dùng và phạm vi nghiệp vụ
+
+' ============================================================
+' ACTORS — abstract "Người dùng" làm gốc, 4 actor cụ thể kế thừa
+' ============================================================
+actor "Người dùng" as ND
+actor "Học sinh" as HS
+actor "Sinh viên" as SV
+actor "Giáo viên" as GV
+actor "Quản trị viên" as QTV
+
+HS -|> ND
+SV -|> ND
+GV -|> ND
+QTV -|> ND
+
+' ============================================================
+' SYSTEM BOUNDARY
+' ============================================================
+rectangle "TheBunny System" as SYS {
+
+  package "Tài khoản & Hồ sơ" as P1 #E0E7FF {
+    usecase "Đăng ký"           as UC_DK
+    usecase "Đăng nhập"         as UC_DN
+    usecase "Cập nhật hồ sơ"    as UC_HS
+    usecase "Đăng xuất"         as UC_DX
+  }
+
+  package "Mạng xã hội" as P2 #DCFCE7 {
+    usecase "Xem feed"          as UC_FD
+    usecase "Đăng bài"          as UC_PB
+    usecase "Bình luận / Thích" as UC_BL
+    usecase "Chia sẻ bài"       as UC_CS
+    usecase "Kết bạn"           as UC_KB
+  }
+
+  package "Nhắn tin" as P3 #FEF9C3 {
+    usecase "Trò chuyện"        as UC_TC
+    usecase "Xem thông báo"     as UC_TB
+  }
+
+  package "Học tập" as P4 #FCE7F3 {
+    usecase "Xem / tải tài liệu"    as UC_DL
+    usecase "Tải lên tài liệu"      as UC_TL
+    usecase "Đăng ký sự kiện"       as UC_DKSK
+    usecase "Tạo sự kiện"           as UC_SK
+    usecase "Duyệt thành viên SK"   as UC_DSK
+  }
+
+  package "Luyện tập & Thi đấu" as P5 #F3E8FF {
+    usecase "Luyện tập trắc nghiệm" as UC_LT
+    usecase "Thách đấu PvP"         as UC_PVP
+    usecase "Xem hạng thơ"          as UC_HT
+  }
+
+  package "Quản lý đề thi" as P6 #FFF7ED {
+    usecase "Tạo / sửa bộ đề"   as UC_BD
+    usecase "Tạo / sửa câu hỏi" as UC_CH
+  }
+
+  package "Kiểm duyệt" as P7 #F1F5F9 {
+    usecase "Báo cáo vi phạm"   as UC_BC
+    usecase "Duyệt báo cáo"     as UC_DBC
+    usecase "Khoá tài khoản"    as UC_KTK
+    usecase "Báo cáo thống kê"  as UC_BCTK
+    usecase "Quản lý user"      as UC_QLU
+  }
+}
+
+' ============================================================
+' BASE (Người dùng) — chức năng chung cho mọi vai trò
+' ============================================================
+ND --> UC_DK
+ND --> UC_DN
+ND --> UC_DX
+ND --> UC_HS
+ND --> UC_FD
+ND --> UC_PB
+ND --> UC_BL
+ND --> UC_CS
+ND --> UC_KB
+ND --> UC_TC
+ND --> UC_TB
+ND --> UC_DL
+ND --> UC_DKSK
+ND --> UC_LT
+ND --> UC_PVP
+ND --> UC_HT
+ND --> UC_BC
+
+' ============================================================
+' HS / SV — chia sẻ tài liệu
+' ============================================================
+HS --> UC_TL
+SV --> UC_TL
+
+' ============================================================
+' GV — sản xuất nội dung học tập
+' ============================================================
+GV --> UC_TL
+GV --> UC_SK
+GV --> UC_DSK
+GV --> UC_BD
+GV --> UC_CH
+
+' ============================================================
+' QTV — kiểm duyệt + quản trị
+' ============================================================
+QTV --> UC_DBC
+QTV --> UC_KTK
+QTV --> UC_BCTK
+QTV --> UC_QLU
+QTV --> UC_DSK
+
+' ============================================================
+' Include / Extend — quan hệ giữa use case
+' ============================================================
+UC_PVP ..> UC_LT  : <<include>>
+UC_PB  ..> UC_FD  : <<extend>>
+UC_DBC ..> UC_KTK : <<extend>>
+UC_BC  ..> UC_DBC : <<include>>
+
+' ============================================================
+' NOTES
+' ============================================================
+note right of ND
+  Lớp gốc "Người dùng"
+  gom các use case dùng chung.
+  4 vai trò kế thừa toàn bộ.
+end note
+
+note bottom of GV
+  GV là người **sản xuất**
+  nội dung học tập trên hệ thống.
+end note
+
+note bottom of QTV
+  QTV thực hiện **kiểm duyệt**
+  và quản lý vận hành.
+end note
+
+@enduml

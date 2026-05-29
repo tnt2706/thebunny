@@ -1,0 +1,123 @@
+@startuml TheBunny_Deployment_Diagram
+
+!theme cerulean-outline
+
+' ===== Layout =====
+skinparam shadowing false
+skinparam roundCorner 12
+skinparam padding 5
+skinparam nodesep 38
+skinparam ranksep 55
+skinparam linetype ortho
+
+' ===== Typography =====
+skinparam DefaultFontName "Inter, Segoe UI, Helvetica Neue, sans-serif"
+skinparam DefaultFontSize 12
+skinparam TitleFontSize 18
+skinparam TitleFontStyle bold
+skinparam TitleFontColor #0f172a
+
+' ===== Node =====
+skinparam node {
+  BackgroundColor #ffffff
+  BorderColor     #475569
+  BorderThickness 1.3
+  FontStyle       bold
+  FontColor       #0f172a
+}
+
+' ===== Artifact =====
+skinparam artifact {
+  BackgroundColor #fef3c7
+  BorderColor     #b45309
+  FontColor       #78350f
+}
+
+' ===== Database =====
+skinparam database {
+  BackgroundColor #fee2e2
+  BorderColor     #b91c1c
+  FontColor       #7f1d1d
+  FontStyle       bold
+}
+
+' ===== Cloud =====
+skinparam cloud {
+  BackgroundColor #ddd6fe
+  BorderColor     #6d28d9
+  FontColor       #4c1d95
+  FontStyle       bold
+}
+
+' ===== Arrows =====
+skinparam ArrowColor #64748b
+skinparam ArrowThickness 1.2
+skinparam ArrowFontColor #334155
+skinparam ArrowFontSize 10
+skinparam ArrowFontStyle italic
+
+' ===== Note =====
+skinparam NoteBackgroundColor #fffbeb
+skinparam NoteBorderColor #fcd34d
+skinparam NoteFontColor #78350f
+skinparam NoteFontSize 10
+
+title TheBunny — Deployment Diagram\nKiến trúc triển khai vật lý · Nhóm 10
+
+node "Client Devices" as ND_CLIENT #DBEAFE {
+  node "Desktop / Laptop" as ND_DESK {
+    artifact "Browser\n(Chrome/Firefox/Safari)" as Browser
+  }
+  node "Mobile Device" as ND_MOB {
+    artifact "Mobile Browser\n/ PWA" as MobileBrowser
+  }
+}
+
+cloud "Internet (HTTPS)" as Net
+
+node "Application Server" as ND_APP #DCFCE7 {
+  artifact "Apache 2.4 / Nginx"        as WebServer
+  artifact "PHP 8.0.30\n(Application)" as PHP
+  artifact "Composer Packages"         as Composer
+  WebServer --> PHP
+  PHP       --> Composer
+}
+
+node "Database Server" as ND_DB #FEE2E2 {
+  database "MariaDB 10.4.32\nthebunny_nhom10" as DB
+  artifact "phpMyAdmin 5.2.1"                 as PMA
+}
+
+node "Storage Server" as ND_FS #FEF9C3 {
+  artifact "File Storage\n(uploads/, tai_lieu/)" as FileStorage
+}
+
+cloud "External Services" as ND_EXT #F3E8FF {
+  artifact "Email SMTP"        as SMTP
+  artifact "CDN\n(static assets)" as CDN
+}
+
+' --- Connections ---
+Browser       <--> Net : HTTPS
+MobileBrowser <--> Net : HTTPS
+Net           <--> WebServer : :443
+
+PHP <--> DB          : TCP :3306\n(PDO/mysqli)
+PHP <--> FileStorage : filesystem
+PHP -->  SMTP        : SMTP :587
+PHP -->  CDN         : assets fetch
+
+PMA <--> DB : admin only
+
+note right of WebServer #fffbeb
+  **Stateless app server** —
+  có thể scale ngang
+  qua load balancer.
+end note
+
+note bottom of DB #fffbeb
+  **Production:** master/slave replication
+  **Development:** single instance
+end note
+
+@enduml
